@@ -1,104 +1,144 @@
-"""
-Головне вікно NeuralControl.
-Каркас з 4 вкладками + темна тема.
-"""
+import time
+from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
+from PySide6.QtWidgets import QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizeGrip
+from PySide6.QtGui import QPainter, QColor, QPen, QLinearGradient, QBrush, QPainterPath, QRadialGradient, QPixmap, QFont
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QTabWidget,
-    QWidget,
-    QVBoxLayout,
-    QLabel,
-    QStatusBar,
-)
-
-from core.types import GESTURES_JSON, RADIAL_MENU_JSON
 from ui.tabs.control_tab import ControlTab
+from ui.widgets.glow_button import mkfont
 
+CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
+MUTED = QColor("#64748b")
 
-class PlaceholderTab(QWidget):
-    """Заглушка для вкладок, які ще в розробці."""
+def a(color, alpha):
+    c = QColor(color)
+    c.setAlpha(max(0, min(255, int(alpha))))
+    return c
 
-    def __init__(self, title: str, description: str, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
+class HudRoot(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.tile = QPixmap(28, 28)
+        self.tile.fill(Qt.transparent)
+        q = QPainter(self.tile)
+        q.setRenderHint(QPainter.Antialiasing)
+        q.setPen(Qt.NoPen)
+        q.setBrush(a(CYAN, 20))
+        q.drawEllipse(QPointF(14, 14), 1, 1)
+        q.end()
 
-        title_label = QLabel(title)
-        title_label.setStyleSheet(
-            "font-size: 28px; font-weight: bold; color: #00d4ff;"
-        )
-        title_label.setAlignment(Qt.AlignCenter)
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        r = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        path = QPainterPath()
+        path.addRoundedRect(r, 14, 14)
+        g = QLinearGradient(r.topLeft(), r.bottomRight())
+        g.setColorAt(0, QColor("#0a0e1a"))
+        g.setColorAt(1, QColor("#0d1226"))
+        p.fillPath(path, QBrush(g))
+        
+        p.save()
+        p.setClipPath(path)
+        p.drawTiledPixmap(self.rect(), self.tile)
+        for pos, col, rad in ((r.topRight(), VIOLET, 520), (r.bottomLeft(), CYAN, 420)):
+            rg = QRadialGradient(pos, rad)
+            rg.setColorAt(0, a(col, 20))
+            rg.setColorAt(1, a(col, 0))
+            p.fillRect(self.rect(), QBrush(rg))
+        vg = QRadialGradient(r.center(), max(r.width(), r.height()) * 0.75)
+        vg.setColorAt(0.55, QColor(0, 0, 0, 0))
+        vg.setColorAt(1, QColor(0, 0, 0, 150))
+        p.fillRect(self.rect(), QBrush(vg))
+        p.restore()
+        
+        p.setPen(QPen(a(CYAN, 60), 1))
+        p.drawPath(path)
 
-        desc_label = QLabel(description)
-        desc_label.setStyleSheet("font-size: 14px; color: #64748b;")
-        desc_label.setAlignment(Qt.AlignCenter)
-        desc_label.setWordWrap(True)
+class TitleBar(QWidget):
+    def __init__(self, win):
+        super().__init__(win)
+        self.setFixedHeight(44)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(18, 0, 10, 0)
+        logo = QLabel("◈")
+        logo.setStyleSheet("color:#4da6ff; font-size:18px;")
+        title = QLabel("NEURAL // CONTROL")
+        title.setObjectName("AppTitle")
+        title.setFont(mkfont(13, QFont.Bold, 3))
+        self.clock = QLabel()
+        self.clock.setObjectName("Clock")
+        self.clock.setFont(mkfont(11, QFont.Normal, 1, True))
+        lay.addWidget(logo)
+        lay.addWidget(title)
+        lay.addStretch()
+        lay.addWidget(self.clock)
+        lay.addSpacing(14)
+        for txt, slot in (("—", win.showMinimized), ("▢", self._max), ("✕", win.close)):
+            b = QPushButton(txt)
+            b.setObjectName("WinBtn")
+            b.setFixedSize(38, 28)
+            b.clicked.connect(slot)
+            if txt == "✕":
+                b.setProperty("danger", True)
+            lay.addWidget(b)
+        t = QTimer(self)
+        t.timeout.connect(self._tick)
+        t.start(1000)
+        self._tick()
 
-        layout.addWidget(title_label)
-        layout.addWidget(desc_label)
+    def _tick(self):
+        self.clock.setText(time.strftime("%H:%M:%S"))
 
+    def _max(self):
+        w = self.window()
+        w.showNormal() if w.isMaximized() else w.showMaximized()
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton and self.window().windowHandle():
+            self.window().windowHandle().startSystemMove()
+
+    def mouseDoubleClickEvent(self, e):
+        self._max()
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        g = QLinearGradient(0, 0, self.width(), 0)
+        g.setColorAt(0, a(CYAN, 0))
+        g.setColorAt(0.2, a(CYAN, 100))
+        g.setColorAt(0.8, a(VIOLET, 100))
+        g.setColorAt(1, a(VIOLET, 0))
+        p.fillRect(QRectF(0, self.height() - 1, self.width(), 1), QBrush(g))
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("⚡ NeuralControl — Neural Hand Control")
-        self.resize(1280, 800)
-        self.setMinimumSize(1024, 700)
+        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setMinimumSize(1000, 650)
+        self.resize(1200, 750) # ЗМЕНШЕНО РОЗМІР
 
-        self._build_ui()
-        self._build_status_bar()
-
-    def _build_ui(self):
+        root = HudRoot()
+        self.setCentralWidget(root)
+        v = QVBoxLayout(root)
+        v.setContentsMargins(1, 1, 1, 1)
+        v.setSpacing(0)
+        
+        v.addWidget(TitleBar(self))
+        
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-
-        # Вкладка 1: Управління (СПРАВЖНЯ)
         self.tab_control = ControlTab()
-        self.tabs.addTab(self.tab_control, "📷 Управління")
+        self.tabs.addTab(self.tab_control, "УПРАВЛІННЯ")
+        v.addWidget(self.tabs)
 
-        # Вкладка 2: Навчання (Заглушка)
-        self.tab_training = PlaceholderTab(
-            "🎓 Навчання",
-            "Запис нових жестів, таблиця класів,\n"
-            "перенавчання моделі (MLP / SVC / RF).\n"
-            "(Етап 4)"
-        )
-        self.tabs.addTab(self.tab_training, "🎓 Навчання")
+        self.grip = QSizeGrip(root)
+        self.grip.setFixedSize(16, 16)
 
-        # Вкладка 3: Лаби (Заглушка)
-        self.tab_labs = PlaceholderTab(
-            "🧪 Лабораторні",
-            "Вбудовані лаби 4-8:\n"
-            "Fuzzy, GA, Регресія, Дерева, CNN.\n"
-            "(Етап 5)"
-        )
-        self.tabs.addTab(self.tab_labs, "🧪 Лаби")
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.grip.move(self.width() - 22, self.height() - 22)
 
-        # Вкладка 4: Довідка (Заглушка)
-        self.tab_help = PlaceholderTab(
-            "📖 Довідка",
-            f"Список жестів та їхніх дій.\n"
-            f"Джерело: {GESTURES_JSON.name}\n"
-            f"Кругове меню: {RADIAL_MENU_JSON.name}\n"
-            "(Етап 5)"
-        )
-        self.tabs.addTab(self.tab_help, "📖 Довідка")
-
-        self.setCentralWidget(self.tabs)
-
-    def _build_status_bar(self):
-        status = QStatusBar()
-        status.setStyleSheet(
-            "background-color: #131826; color: #64748b; "
-            "border-top: 1px solid #2a3350; padding: 4px;"
-        )
-        status.showMessage("● Готово | Камера: вимкнена | Режим: очікування")
-        self.setStatusBar(status)
-
-    def closeEvent(self, event):
-        """Коректно зупиняємо камеру при закритті вікна."""
+    def closeEvent(self, e):
         if hasattr(self, 'tab_control'):
             self.tab_control.stop()
-        event.accept()
+        super().closeEvent(e)

@@ -14,13 +14,18 @@ class GestureController(QObject):
 
     @Slot(object)
     def process_frame(self, frame):
-        # Обробка кадру (відбувається в окремому потоці)
         result = self.tracker.process(frame)
         
         tracked_hands = {}
         if result.has_hands:
+            # Отримуємо сирі точки
             hands_arrays = [h.points for h in result.hands]
-            tracked_hands = self.slots.update(hands_arrays, time.monotonic())
+            # Оновлюємо слоти (фільтруємо)
+            tracked_dict = self.slots.update(hands_arrays, time.monotonic())
+            
+            # Перетворюємо numpy-масиви в звичайні списки, щоб уникнути проблем з пам'яттю в Qt
+            for slot, pts in tracked_dict.items():
+                tracked_hands[slot] = [(float(p[0]), float(p[1])) for p in pts]
             
         self.processed_frame.emit(frame, tracked_hands)
 

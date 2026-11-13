@@ -1,184 +1,96 @@
-"""
-Темна нейро-тема для NeuralControl.
-"""
-
-COLORS = {
-    "bg":           "#0a0e1a",
-    "panel":        "#131826",
-    "card":         "#1a2138",
-    "border":       "#2a3350",
-    "accent":       "#00d4ff",
-    "accent2":      "#7c3aed",
-    "success":      "#00ff88",
-    "warning":      "#ffaa00",
-    "danger":       "#ff3366",
-    "text":         "#e2e8f0",
-    "text_dim":     "#64748b",
+DARK_STYLE = """
+QWidget {
+    color: #e6f1ff;
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+    font-size: 14px;
 }
 
+#Root {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0e1a, stop:1 #0d1124);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 14px;
+}
 
-DARK_STYLE = f"""
-QWidget {{
-    background-color: {COLORS['bg']};
-    color: {COLORS['text']};
-    font-family: "Inter", "Segoe UI", sans-serif;
+#TitleBar {
+    background: transparent;
+}
+
+#AppTitle {
+    color: #00d4ff;
+    font-family: "Orbitron", "Segoe UI";
     font-size: 14px;
-}}
+    font-weight: bold;
+}
 
-QTabWidget::pane {{
-    border: 1px solid {COLORS['border']};
-    border-radius: 8px;
-    background-color: {COLORS['panel']};
-    top: -1px;
-}}
-
-QTabBar::tab {{
-    background-color: {COLORS['panel']};
-    color: {COLORS['text_dim']};
-    padding: 10px 22px;
-    margin-right: 4px;
-    border: 1px solid {COLORS['border']};
-    border-bottom: none;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    font-weight: 600;
-}}
-
-QTabBar::tab:selected {{
-    background-color: {COLORS['card']};
-    color: {COLORS['accent']};
-    border-bottom: 2px solid {COLORS['accent']};
-}}
-
-QTabBar::tab:hover {{
-    color: {COLORS['text']};
-}}
-
-QPushButton {{
-    background-color: {COLORS['card']};
-    color: {COLORS['text']};
-    border: 1px solid {COLORS['border']};
+#WinBtn {
+    background: transparent;
+    border: none;
     border-radius: 6px;
-    padding: 8px 16px;
-    font-weight: 600;
-}}
+    color: #6b7a99;
+    font-size: 16px;
+}
+#WinBtn:hover { background: rgba(0, 212, 255, 0.12); color: #00d4ff; }
+#WinBtn[danger="true"]:hover { background: rgba(255, 46, 151, 0.2); color: #ff2e97; }
 
-QPushButton:hover {{
-    background-color: {COLORS['panel']};
-    border-color: {COLORS['accent']};
-    color: {COLORS['accent']};
-}}
+#SidePanel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 12px;
+}
 
-QPushButton:pressed {{
-    background-color: {COLORS['accent']};
-    color: {COLORS['bg']};
-}}
-
-QPushButton:disabled {{
-    color: {COLORS['text_dim']};
-    border-color: {COLORS['border']};
-}}
-
-QGroupBox {{
-    background-color: {COLORS['panel']};
-    border: 1px solid {COLORS['border']};
-    border-radius: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    font-weight: 600;
-    color: {COLORS['accent']};
-}}
-
-QGroupBox::title {{
+QGroupBox {
+    border: 1px solid rgba(0, 212, 255, 0.18);
+    border-radius: 10px;
+    margin-top: 16px;
+    padding: 15px 10px 10px 10px;
+    font-family: "Orbitron", "Segoe UI";
+    font-size: 11px;
+    font-weight: bold;
+    color: #00d4ff;
+}
+QGroupBox::title {
     subcontrol-origin: margin;
     left: 12px;
     padding: 0 6px;
-    color: {COLORS['accent']};
-}}
+}
 
-QLabel {{
-    color: {COLORS['text']};
-    background: transparent;
-}}
-
-QTextEdit, QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-    background-color: {COLORS['card']};
-    color: {COLORS['text']};
-    border: 1px solid {COLORS['border']};
-    border-radius: 6px;
-    padding: 6px;
-    selection-background-color: {COLORS['accent']};
-    selection-color: {COLORS['bg']};
-}}
-
-QComboBox::drop-down {{
+QTabWidget::pane {
     border: none;
-    width: 24px;
-}}
+    background: transparent;
+}
 
-QComboBox QAbstractItemView {{
-    background-color: {COLORS['card']};
-    color: {COLORS['text']};
-    selection-background-color: {COLORS['accent']};
-    selection-color: {COLORS['bg']};
-    border: 1px solid {COLORS['border']};
-}}
+QTabBar::tab {
+    background: transparent;
+    color: #6b7a99;
+    padding: 10px 22px;
+    border: none;
+    font-weight: bold;
+}
+QTabBar::tab:selected {
+    color: #00d4ff;
+    border-bottom: 2px solid #00d4ff;
+}
+QTabBar::tab:hover {
+    color: #e6f1ff;
+}
 
-QTableWidget {{
-    background-color: {COLORS['panel']};
-    color: {COLORS['text']};
-    gridline-color: {COLORS['border']};
-    border: 1px solid {COLORS['border']};
-    border-radius: 6px;
-}}
+QPushButton {
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.55);
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: #00d4ff;
+    font-weight: bold;
+}
+QPushButton:hover { background: rgba(0, 212, 255, 0.18); border-color: #00d4ff; }
+QPushButton:pressed { background: rgba(0, 212, 255, 0.30); }
 
-QTableWidget::item:selected {{
-    background-color: {COLORS['accent']};
-    color: {COLORS['bg']};
-}}
-
-QHeaderView::section {{
-    background-color: {COLORS['card']};
-    color: {COLORS['accent']};
-    border: 1px solid {COLORS['border']};
-    padding: 6px;
-    font-weight: 600;
-}}
-
-QScrollBar:vertical {{
-    background: {COLORS['panel']};
-    width: 10px;
-    border-radius: 5px;
-}}
-
-QScrollBar::handle:vertical {{
-    background: {COLORS['border']};
-    border-radius: 5px;
-    min-height: 30px;
-}}
-
-QScrollBar::handle:vertical:hover {{
-    background: {COLORS['accent']};
-}}
-
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0px;
-}}
-
-QCheckBox {{
-    spacing: 8px;
-}}
-
-QCheckBox::indicator {{
-    width: 18px;
-    height: 18px;
-    border: 2px solid {COLORS['border']};
-    border-radius: 4px;
-    background: {COLORS['card']};
-}}
-
-QCheckBox::indicator:checked {{
-    background: {COLORS['accent']};
-    border-color: {COLORS['accent']};
-}}
+QCheckBox::indicator {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.5); background: transparent;
+}
+QCheckBox::indicator:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #00d4ff, stop:1 #7c3aed);
+    border-color: #00d4ff;
+}
 """
