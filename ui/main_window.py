@@ -14,10 +14,11 @@ from PySide6.QtWidgets import (
 )
 
 from core.types import GESTURES_JSON, RADIAL_MENU_JSON
+from ui.tabs.control_tab import ControlTab
 
 
 class PlaceholderTab(QWidget):
-    """Заглушка для Етапу 0."""
+    """Заглушка для вкладок, які ще в розробці."""
 
     def __init__(self, title: str, description: str, parent=None):
         super().__init__(parent)
@@ -53,13 +54,11 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
 
-        self.tab_control = PlaceholderTab(
-            "📷 Управління",
-            "Камера, скелет руки, режими (Жести / Мишка / Малювання).\n"
-            "(Етап 3)"
-        )
+        # Вкладка 1: Управління (СПРАВЖНЯ)
+        self.tab_control = ControlTab()
         self.tabs.addTab(self.tab_control, "📷 Управління")
 
+        # Вкладка 2: Навчання (Заглушка)
         self.tab_training = PlaceholderTab(
             "🎓 Навчання",
             "Запис нових жестів, таблиця класів,\n"
@@ -68,6 +67,7 @@ class MainWindow(QMainWindow):
         )
         self.tabs.addTab(self.tab_training, "🎓 Навчання")
 
+        # Вкладка 3: Лаби (Заглушка)
         self.tab_labs = PlaceholderTab(
             "🧪 Лабораторні",
             "Вбудовані лаби 4-8:\n"
@@ -76,6 +76,7 @@ class MainWindow(QMainWindow):
         )
         self.tabs.addTab(self.tab_labs, "🧪 Лаби")
 
+        # Вкладка 4: Довідка (Заглушка)
         self.tab_help = PlaceholderTab(
             "📖 Довідка",
             f"Список жестів та їхніх дій.\n"
@@ -95,3 +96,9 @@ class MainWindow(QMainWindow):
         )
         status.showMessage("● Готово | Камера: вимкнена | Режим: очікування")
         self.setStatusBar(status)
+
+    def closeEvent(self, event):
+        """Коректно зупиняємо камеру при закритті вікна."""
+        if hasattr(self, 'tab_control'):
+            self.tab_control.stop()
+        event.accept()
