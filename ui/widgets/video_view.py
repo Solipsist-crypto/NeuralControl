@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import (QPainter, QPainterPath, QColor, QPen, QBrush, 
                            QLinearGradient, QImage, QFont, QPixmap)
 from PySide6.QtWidgets import QWidget, QSizePolicy
+from core.types import GESTURE_TRANSLATIONS
 
 CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6") # Трохи м'якші
 GREEN, PINK = QColor("#4ade80"), QColor("#f472b6")
@@ -28,21 +29,6 @@ def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
 CONN = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 5), (5, 6), (6, 7), (7, 8), (5, 9), (9, 10), (10, 11), (11, 12),
         (9, 13), (13, 14), (14, 15), (15, 16), (13, 17), (17, 18), (18, 19), (19, 20), (0, 17)]
 
-def analyze(p):
-    d = lambda i, j: float(np.linalg.norm(p[i] - p[j]))
-    st = [d(4, 17) > d(3, 17) * 1.1]
-    st += [d(t, 0) > d(q, 0) * 1.1 for t, q in ((8, 6), (12, 10), (16, 14), (20, 18))]
-    st = [bool(s) for s in st]
-    n = sum(st)
-    if d(4, 8) < 0.3 * d(0, 9): name = "PINCH"
-    elif n == 0: name = "FIST"
-    elif n == 5: name = "OPEN"
-    elif st == [False, True, False, False, False]: name = "POINT"
-    elif st == [False, True, True, False, False]: name = "PEACE"
-    elif st == [True, False, False, False, False]: name = "THUMB"
-    else: name = f"{n} FINGERS"
-    return name, st
-
 def draw_hand(p, px):
     p.setBrush(Qt.NoBrush)
     p.setCompositionMode(QPainter.CompositionMode_Plus)
@@ -60,7 +46,7 @@ def draw_hand(p, px):
         p.setBrush(QColor("white"))
         p.drawEllipse(pt, 3 if tip else 2, 3 if tip else 2)
 
-def draw_reticle(p, c, rad, ph):
+def draw_reticle(p, c, rad, ph, hold_progress=0.0):
     p.setBrush(Qt.NoBrush)
     r1 = QRectF(c.x() - rad, c.y() - rad, 2 * rad, 2 * rad)
     p.setPen(QPen(a(CYAN, 210), 2))
@@ -72,6 +58,12 @@ def draw_reticle(p, c, rad, ph):
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         p.drawLine(QPointF(c.x() + dx * (rad + 4), c.y() + dy * (rad + 4)),
                    QPointF(c.x() + dx * (rad + 12), c.y() + dy * (rad + 12)))
+    if hold_progress > 0:
+        hold_ring = r1.adjusted(-8, -8, 8, 8)
+        p.setPen(QPen(a(CYAN, 70), 4))
+        p.drawEllipse(hold_ring)
+        p.setPen(QPen(a(CYAN, 240), 4, Qt.SolidLine, Qt.RoundCap))
+        p.drawArc(hold_ring, 90 * 16, -int(360 * hold_progress * 16))
 
 class VideoView(QWidget):
     BG = QColor("#070a14")
@@ -84,6 +76,7 @@ class VideoView(QWidget):
         self._qimg = None
         self._aspect = 4 / 3
         self.hands, self.fps = [], 0.0
+        self.hold_progress = 0.0
         self.trails = {}
         self.phase = 0.0
         self.holo, self.skeleton, self.scan = False, True, True
@@ -94,7 +87,7 @@ class VideoView(QWidget):
         q.fillRect(0, 0, 2, 1, QColor(0, 0, 0, 55))
         q.end()
 
-    def set_frame(self, bgr, tracked_hands, fps):
+    def set_frame(self, bgr, tracked_hands, fps, predictions=None, hold_progress=0.0):
         h, w = bgr.shape[:2]
         self._frame = bgr
         self._qimg = QImage(bgr.data, w, h, 3 * w, QImage.Format_BGR888).copy()
@@ -104,9 +97,18 @@ class VideoView(QWidget):
         self.hands = []
         for slot, pts in tracked_hands.items():
             pts_np = np.array(pts)
-            name, st = analyze(pts_np)
-            self.hands.append((slot, pts_np, name, st))
+            prediction, confidence = (
+                predictions.get(slot, (None, None)) if predictions else (None, None)
+            )
+            label = (
+                GESTURE_TRANSLATIONS.get(prediction, prediction)
+                if prediction else "МОДЕЛЬ НЕ ЗАВАНТАЖЕНО"
+            )
+            if confidence is not None:
+                label += f" ({confidence:.0%})"
+            self.hands.append((slot, pts_np, label, confidence))
 
+        self.hold_progress = max(0.0, min(1.0, float(hold_progress)))
         seen = set()
         for slot, pts, _, _ in self.hands:
             self.trails.setdefault(slot, deque(maxlen=20)).append((float(pts[8][0]), float(pts[8][1])))
@@ -153,7 +155,7 @@ class VideoView(QWidget):
                 px = [self.to_px(x, y, r) for x, y in pts]
                 self._draw_trail(p, slot, r)
                 draw_hand(p, px)
-                self._draw_hand_hud(p, r, slot, name, pts, px)
+                self._draw_hand_hud(p, r, slot, name, pts, px, self.hold_progress)
                 
         if self.scan:
             p.drawTiledPixmap(r.toRect(), self.scan_tile)
@@ -192,12 +194,12 @@ class VideoView(QWidget):
             p.setPen(QPen(a(PINK, 230 * k), 1 + 5 * k, Qt.SolidLine, Qt.RoundCap))
             p.drawLine(self.to_px(*tr[i - 1], r), self.to_px(*tr[i], r))
 
-    def _draw_hand_hud(self, p, r, slot, name, pts, px):
+    def _draw_hand_hud(self, p, r, slot, name, pts, px, hold_progress):
         palm = np.mean(pts[[0, 5, 9, 13, 17]], axis=0)
         c = self.to_px(float(palm[0]), float(palm[1]), r)
         xs, ys = [q.x() for q in px], [q.y() for q in px]
         rad = max(max(xs) - min(xs), max(ys) - min(ys)) * 0.62
-        draw_reticle(p, c, rad, self.phase)
+        draw_reticle(p, c, rad, self.phase, hold_progress)
         x = min(r.right() - 150, max(xs) + 18)
         y = max(r.top() + 56, min(ys))
         p.setPen(QPen(a(CYAN, 150), 1))

@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHB
 from PySide6.QtGui import QPainter, QColor, QPen, QLinearGradient, QBrush, QPainterPath, QRadialGradient, QPixmap, QFont
 
 from ui.tabs.control_tab import ControlTab
+from ui.tabs.training_tab import TrainingTab
 from ui.widgets.glow_button import mkfont
 
 CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
@@ -129,6 +130,8 @@ class MainWindow(QMainWindow):
         self.tabs.setDocumentMode(True)
         self.tab_control = ControlTab()
         self.tabs.addTab(self.tab_control, "УПРАВЛІННЯ")
+        self.tab_training = TrainingTab()
+        self.tabs.addTab(self.tab_training, "🎓 НАВЧАННЯ")
         v.addWidget(self.tabs)
 
         self.grip = QSizeGrip(root)

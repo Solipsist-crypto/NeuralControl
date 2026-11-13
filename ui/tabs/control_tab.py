@@ -1,3 +1,7 @@
+import os
+import pyautogui
+import time
+
 from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QFrame
 from PySide6.QtGui import QPainter, QColor, QPen, QLinearGradient, QBrush, QPainterPath, QFont
@@ -6,6 +10,7 @@ from ui.widgets.video_view import VideoView
 from ui.widgets.glow_button import GlowButton, ArcReactor, Sparkline, Console
 from services.camera_service import CameraThread
 from services.gesture_controller import GestureController
+from core.types import GESTURE_TRANSLATIONS
 
 # Нові кольори
 CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
@@ -70,6 +75,8 @@ class HudPanel(QWidget):
         p.drawLine(QPointF(r.right() - 26, r.bottom()), QPointF(r.right() - 12, r.bottom()))
 
 class ControlTab(QWidget):
+    HOLD_SECONDS = 0.5
+
     def __init__(self):
         super().__init__()
         body = QHBoxLayout(self)
@@ -130,7 +137,9 @@ class ControlTab(QWidget):
         self.b_scan.toggled.connect(lambda x: setattr(self.video, "scan", x))
         self.b_gest.toggled.connect(self._gestures_toggled)
 
-        self._prev_n, self._prev_gesture = 0, None
+        self._prev_n, self._prev_gestures = 0, {}
+        self._gesture_holds = {}
+        self.hold_progress = 0.0
         self._set_status("ОЧІКУВАННЯ", 0)
 
         self.animated = [self.video, self.reactor, self.spark]
@@ -165,12 +174,32 @@ class ControlTab(QWidget):
 
     def _gestures_toggled(self, on):
         self.console.say(f"КЕРУВАННЯ ЖЕСТАМИ: {'АКТИВНО' if on else 'ВИМКНЕНО'}")
+        self._prev_gestures.clear()
+        self._gesture_holds.clear()
+        self.hold_progress = 0.0
+        self.video.hold_progress = 0.0
+        self.video.update()
         self._set_status("КЕРУВАННЯ" if on else ("ТРЕКІНГ" if self._prev_n else "ОЧІКУВАННЯ"), self._prev_n)
 
-    def on_frame_processed(self, frame, tracked_hands):
+    def on_frame_processed(self, frame, tracked_hands, predictions):
         self.frame_count += 1
-        self.video.set_frame(frame, tracked_hands, self.reactor.fps)
-        
+        main_win = self.window()
+
+        # Передаємо ознаки у вкладку навчання, якщо є рука
+        if tracked_hands:
+            first_slot = list(tracked_hands.keys())[0]
+            pts = tracked_hands[first_slot]
+            if isinstance(pts, list):
+                import numpy as np
+                pts = np.array(pts)
+
+            # Безпечно шукаємо головне вікно і вкладку навчання
+            if hasattr(main_win, 'tab_training'):
+                main_win.tab_training.set_current_features(pts.flatten())
+
+        if hasattr(main_win, 'tab_training'):
+            main_win.tab_training.update_preview(frame)
+
         n = len(tracked_hands)
         if n != self._prev_n:
             self.console.say("ЦІЛЬ ЗНАЙДЕНО" if n > self._prev_n else "ЦІЛЬ ВТРАЧЕНО")
@@ -178,14 +207,63 @@ class ControlTab(QWidget):
             self._set_status(mode, n)
             self._prev_n = n
             
-        # (Тут ми більше не малюємо GESTURE, але логи жестів залишаємо)
-        if self.video.hands:
-            _, _, name, st = self.video.hands[0]
-            if name != self._prev_gesture and self.b_gest.isChecked():
-                self.console.say(f"ЖЕСТ: {name}")
-            self._prev_gesture = name
-        else:
-            self._prev_gesture = None
+        current_gestures = {}
+        current_holds = {}
+        hold_progress = 0.0
+        now = time.monotonic()
+        for slot, (prediction, confidence) in (predictions or {}).items():
+            current_gestures[slot] = prediction
+            if self._prev_gestures.get(slot) != prediction:
+                translated = GESTURE_TRANSLATIONS.get(prediction, prediction)
+                confidence_text = f" ({confidence:.0%})" if confidence is not None else ""
+                self.console.say(f"ЖЕСТ: {translated}{confidence_text}")
+
+            if not self.b_gest.isChecked() or prediction not in {
+                "LEFT_FIST", "RIGHT_FIST", "LEFT_OPEN", "LEFT_POINT"
+            }:
+                continue
+
+            hold = self._gesture_holds.get(slot)
+            if hold is None or hold[0] != prediction:
+                hold = (prediction, now, False)
+
+            gesture, started_at, fired = hold
+            if not fired:
+                progress = min(1.0, (now - started_at) / self.HOLD_SECONDS)
+                hold_progress = max(hold_progress, progress)
+                if progress >= 1.0:
+                    self._perform_gesture_action(gesture)
+                    fired = True
+
+            current_holds[slot] = (gesture, started_at, fired)
+
+        self._prev_gestures = current_gestures
+        self._gesture_holds = current_holds
+        self.hold_progress = hold_progress
+        self.video.set_frame(
+            frame, tracked_hands, self.reactor.fps, predictions, self.hold_progress
+        )
+
+    def _perform_gesture_action(self, prediction):
+        key_actions = {
+            "LEFT_FIST": ("playpause", "перемикання відтворення"),
+            "RIGHT_FIST": ("volumeup", "збільшення гучності"),
+            "LEFT_POINT": ("space", "натискання пробілу"),
+        }
+        translated = GESTURE_TRANSLATIONS.get(prediction, prediction)
+        if prediction == "LEFT_OPEN":
+            result = os.system("start tg://")
+            if result == 0:
+                self.console.say(f"ДІЯ: {translated} — відкриваю Telegram")
+            else:
+                self.console.say("ПОМИЛКА: не вдалося відкрити Telegram")
+            return
+
+        action = key_actions.get(prediction)
+        if action is not None:
+            key, description = action
+            pyautogui.press(key)
+            self.console.say(f"ДІЯ: {translated} — {description}")
 
     def stop(self):
         self.camera.stop()

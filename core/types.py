@@ -47,6 +47,14 @@ TOTAL_FEATURES = FEATURES_PER_HAND * 2
 DEFAULT_CONFIDENCE_THRESHOLD = 0.7
 MIN_SAMPLES_PER_CLASS = 15
 
+GESTURE_TRANSLATIONS = {
+    "LEFT_FIST": "ЛІВИЙ КУЛАК",
+    "RIGHT_FIST": "ПРАВИЙ КУЛАК",
+    "LEFT_OPEN": "ЛІВА ДОЛОНЯ",
+    "RIGHT_OPEN": "ПРАВА ДОЛОНЯ",
+    "LEFT_POINT": "ЛІВИЙ ВКАЗІВНИЙ",
+}
+
 # Тривалості утримання
 HOLD_TOGGLE_MODE = 3.0      # перемикання режиму
 HOLD_RADIAL_MENU = 0.5      # кругове меню
