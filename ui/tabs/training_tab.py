@@ -2,9 +2,9 @@ import cv2
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QTableWidget, QTableWidgetItem, 
-                               QHeaderView, QMessageBox, QGroupBox, QFrame)
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QColor, QImage, QPixmap
+                               QHeaderView, QMessageBox, QFrame)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QImage, QPixmap
 
 from ui.widgets.glow_button import GlowButton
 from services.training_service import TrainingService
@@ -32,18 +32,18 @@ class TrainingTab(QWidget):
         left_layout = QVBoxLayout(left_panel)
         
         title = QLabel("ЗАПИС НОВОГО ЖЕСТУ")
-        title.setStyleSheet("color: #4da6ff; font-weight: bold; font-size: 16px;")
+        title.setObjectName("TrainingPanelTitle")
         left_layout.addWidget(title)
 
         self.preview_label = QLabel()
+        self.preview_label.setObjectName("TrainingPreview")
         self.preview_label.setFixedSize(320, 240)
         self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setStyleSheet("background-color: #0a0e1a;")
         left_layout.addWidget(self.preview_label)
 
         self.input_gesture = QLineEdit()
+        self.input_gesture.setObjectName("TrainingGestureInput")
         self.input_gesture.setPlaceholderText("Назва жесту (напр. 'Серце')")
-        self.input_gesture.setStyleSheet("padding: 10px; font-size: 14px;")
         left_layout.addWidget(self.input_gesture)
 
         btn_capture = GlowButton("📸 ЗАПИСАТИ 1 ПРИКЛАД", color="#4da6ff")
@@ -60,7 +60,7 @@ class TrainingTab(QWidget):
         right_panel = QVBoxLayout()
         
         title2 = QLabel("БАЗА ЗНАНЬ (ДАТАСЕТ)")
-        title2.setStyleSheet("color: #4da6ff; font-weight: bold; font-size: 16px;")
+        title2.setObjectName("TrainingDatasetTitle")
         right_panel.addWidget(title2)
 
         self.table = QTableWidget(0, 2)

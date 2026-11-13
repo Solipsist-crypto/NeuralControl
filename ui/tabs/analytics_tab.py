@@ -59,6 +59,7 @@ class HudPanel(QFrame):
 class AnalyticsTab(QWidget):
     def __init__(self, training_service=None):
         super().__init__()
+        self.setStyleSheet("background-color: #0a0e1a;")
         self.training_service = training_service or TrainingService()
         self._build_ui()
         self.refresh_data()
@@ -70,7 +71,12 @@ class AnalyticsTab(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(
+            "QScrollArea { background-color: #0a0e1a; border: none; }"
+        )
+        scroll.viewport().setStyleSheet("background-color: #0a0e1a;")
         content = QWidget()
+        content.setStyleSheet("background-color: #0a0e1a;")
         layout = QGridLayout(content)
         layout.setContentsMargins(18, 16, 18, 18)
         layout.setSpacing(14)
@@ -121,6 +127,11 @@ class AnalyticsTab(QWidget):
 
         samples_panel = HudPanel("СПИСОК ПРИКЛАДІВ")
         self.samples_table = QTableWidget(0, 3)
+        self.samples_table.setStyleSheet(
+            "QTableWidget { background-color: #0a0e1a; border: none; }"
+        )
+        self.samples_table.setFrameShape(QFrame.NoFrame)
+        self.samples_table.setContentsMargins(0, 0, 0, 0)
         self.samples_table.setHorizontalHeaderLabels(["ID (час)", "ЖЕСТ", "ДІЯ"])
         self.samples_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.samples_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -217,8 +228,11 @@ class AnalyticsTab(QWidget):
 
     def _refresh_confusion_matrix(self, accuracy):
         self.confusion_figure.clear()
+        self.confusion_figure.patch.set_facecolor(BG)
         axes = self.confusion_figure.add_subplot(111)
         self._style_axes(axes)
+        axes.tick_params(colors="white")
+        axes.set_facecolor(BG)
 
         if accuracy is None:
             axes.text(
@@ -247,10 +261,10 @@ class AnalyticsTab(QWidget):
                     GESTURE_TRANSLATIONS.get(gesture, gesture)
                     for gesture in classes
                 ]
-                image = axes.imshow(matrix, interpolation="nearest", cmap="Blues")
-                self.confusion_figure.colorbar(image, ax=axes).ax.tick_params(
-                    colors=TEXT
-                )
+                image = axes.imshow(matrix, interpolation="nearest", cmap="magma")
+                colorbar = self.confusion_figure.colorbar(image, ax=axes)
+                colorbar.ax.tick_params(colors="white")
+                colorbar.ax.set_facecolor(BG)
                 positions = np.arange(len(labels))
                 axes.set_xticks(positions, labels, rotation=35, ha="right")
                 axes.set_yticks(positions, labels)

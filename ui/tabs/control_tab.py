@@ -200,6 +200,13 @@ class ControlTab(QWidget):
         if hasattr(main_win, 'tab_training'):
             main_win.tab_training.update_preview(frame)
 
+        if (
+            getattr(main_win, 'tab_drawing', None) is not None
+            and getattr(main_win, 'tabs', None) is not None
+            and main_win.tabs.currentWidget() is main_win.tab_drawing
+        ):
+            main_win.tab_drawing.set_frame(frame, tracked_hands)
+
         n = len(tracked_hands)
         if n != self._prev_n:
             self.console.say("ЦІЛЬ ЗНАЙДЕНО" if n > self._prev_n else "ЦІЛЬ ВТРАЧЕНО")

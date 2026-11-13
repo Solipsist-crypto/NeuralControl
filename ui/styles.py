@@ -56,7 +56,7 @@ QGroupBox::title {
 
 QTabWidget::pane {
     border: none;
-    background: transparent;
+    background-color: #0a0e1a;
 }
 
 QTabBar::tab {
@@ -109,6 +109,12 @@ QTableWidget::item {
     padding: 5px;
 }
 
+QHeaderView {
+    background-color: #131826;
+    color: #4da6ff;
+    border: none;
+}
+
 QHeaderView::section {
     background-color: #131826;
     color: #4da6ff;
@@ -117,11 +123,21 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-QTableWidget QHeaderView::section:vertical {
+QHeaderView::section:horizontal {
     background-color: #131826;
     color: #4da6ff;
+    border: 1px solid #2a3350;
+}
+
+QTableWidget QHeaderView::section:vertical {
+    background-color: #0a0e1a;
+    color: #4da6ff;
     border: none;
-    padding: 4px;
+}
+
+QTableCornerButton::section {
+    background-color: #131826;
+    border: 1px solid #2a3350;
 }
 
 QLineEdit {
@@ -132,6 +148,11 @@ QLineEdit {
     padding: 8px;
     selection-background-color: #4da6ff;
     selection-color: #0a0e1a;
+}
+
+QLineEdit#TrainingGestureInput {
+    padding: 10px;
+    font-size: 14px;
 }
 
 QLineEdit:focus {
@@ -146,10 +167,78 @@ QComboBox {
     padding: 5px;
 }
 
+QComboBox::drop-down {
+    background-color: #131826;
+    border-left: 1px solid #2a3350;
+}
+
 QComboBox QAbstractItemView {
     background-color: #131826;
     color: #e2e8f0;
     selection-background-color: #4da6ff;
+}
+
+QScrollBar:vertical {
+    background-color: #0a0e1a;
+    border: none;
+    width: 8px;
+    margin: 4px 2px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #2a3350;
+    border-radius: 4px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #4da6ff;
+}
+
+QScrollBar:horizontal {
+    background-color: #0a0e1a;
+    border: none;
+    height: 8px;
+    margin: 2px 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #2a3350;
+    border-radius: 4px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #4da6ff;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    width: 0;
+    height: 0;
+    border: none;
+    background: transparent;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: transparent;
+}
+
+#TrainingPanelTitle, #TrainingDatasetTitle {
+    color: #4da6ff;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+QLabel#TrainingPreview {
+    background-color: #0a0e1a;
+    border: 1px solid #2a3350;
+    border-radius: 6px;
+}
+
+QPushButton#HandDrawToggle:checked {
+    background-color: rgba(74, 222, 128, 0.18);
+    border-color: #4ade80;
+    color: #4ade80;
 }
 
 QMessageBox {

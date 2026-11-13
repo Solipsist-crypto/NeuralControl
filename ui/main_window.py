@@ -6,6 +6,8 @@ from PySide6.QtGui import QPainter, QColor, QPen, QLinearGradient, QBrush, QPain
 from ui.tabs.control_tab import ControlTab
 from ui.tabs.training_tab import TrainingTab
 from ui.tabs.analytics_tab import AnalyticsTab
+from ui.tabs.drawing_tab import DrawingTab
+from ui.tabs.help_tab import HelpTab
 from ui.widgets.glow_button import mkfont
 
 CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
@@ -135,6 +137,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.tab_training, "🎓 НАВЧАННЯ")
         self.tab_analytics = AnalyticsTab(self.tab_training.training_service)
         self.tabs.addTab(self.tab_analytics, "📊 АНАЛІТИКА")
+        self.tab_drawing = DrawingTab()
+        self.tabs.addTab(self.tab_drawing, "🖌️ МАЛЮВАННЯ")
+        self.tab_help = HelpTab()
+        self.tabs.addTab(self.tab_help, "📖 ДОВІДКА")
         self.tabs.currentChanged.connect(self._on_tab_changed)
         v.addWidget(self.tabs)
 
