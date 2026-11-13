@@ -1,0 +1,1 @@
+"""Інтерфейс користувача NeuralControl (PySide6)."""

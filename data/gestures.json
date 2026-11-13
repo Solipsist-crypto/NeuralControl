@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-13T00:00:00",
+  "gestures": [
+    {
+      "id": "left_fist",
+      "name": "Лівий кулак",
+      "emoji": "✊",
+      "type": "static",
+      "hand": "left",
+      "action": { "type": "media", "payload": { "key": "playpause" } },
+      "hold_seconds": 1.0,
+      "description": "Кулак лівої руки — пауза/плей",
+      "enabled": true
+    },
+    {
+      "id": "left_palm",
+      "name": "Ліва долоня",
+      "emoji": "✋",
+      "type": "static",
+      "hand": "left",
+      "action": { "type": "system", "payload": { "command": "start tg://" } },
+      "hold_seconds": 1.0,
+      "description": "Долоня лівої руки — відкрити Telegram",
+      "enabled": true
+    },
+    {
+      "id": "left_point_up",
+      "name": "Палець вгору",
+      "emoji": "☝️",
+      "type": "static",
+      "hand": "left",
+      "action": { "type": "media", "payload": { "key": "volumeup" } },
+      "hold_seconds": 0.5,
+      "description": "Вказівний палець вгору — гучність +",
+      "enabled": true
+    },
+    {
+      "id": "right_point",
+      "name": "Права вказівний",
+      "emoji": "☝️",
+      "type": "static",
+      "hand": "right",
+      "action": { "type": "mouse", "payload": { "mode": "move" } },
+      "hold_seconds": 0.0,
+      "description": "Рух курсора (тільки в режимі мишки)",
+      "enabled": true
+    },
+    {
+      "id": "right_thumb_middle",
+      "name": "Великий до середнього",
+      "emoji": "🤏",
+      "type": "static",
+      "hand": "right",
+      "action": { "type": "mouse", "payload": { "button": "left" } },
+      "hold_seconds": 0.2,
+      "description": "Лівий клік (вказівний не рухається)",
+      "enabled": true
+    },
+    {
+      "id": "right_thumb_ring",
+      "name": "Великий до безіменного",
+      "emoji": "🖱️",
+      "type": "static",
+      "hand": "right",
+      "action": { "type": "mouse", "payload": { "button": "right" } },
+      "hold_seconds": 0.2,
+      "description": "Правий клік",
+      "enabled": true
+    },
+    {
+      "id": "right_fist",
+      "name": "Правий кулак",
+      "emoji": "✊",
+      "type": "static",
+      "hand": "right",
+      "action": { "type": "system", "payload": { "command": "toggle_mouse_mode" } },
+      "hold_seconds": 3.0,
+      "description": "Утримання 3 сек — перемкнути режим мишки",
+      "enabled": true
+    },
+    {
+      "id": "heart",
+      "name": "Серце",
+      "emoji": "❤️",
+      "type": "static",
+      "hand": "both",
+      "action": { "type": "system", "payload": { "command": "show_heart" } },
+      "hold_seconds": 1.0,
+      "description": "Обидві руки — серце на екрані",
+      "enabled": true
+    },
+    {
+      "id": "right_palm_drawing",
+      "name": "Права долоня (малювання)",
+      "emoji": "✋",
+      "type": "static",
+      "hand": "right",
+      "action": { "type": "system", "payload": { "command": "toggle_drawing_mode" } },
+      "hold_seconds": 3.0,
+      "description": "Права долоня 3 сек — режим малювання",
+      "enabled": true
+    }
+  ]
+}

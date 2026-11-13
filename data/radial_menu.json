@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sectors": [
+    {
+      "index": 0,
+      "icon": "telegram",
+      "label": "Telegram",
+      "action": { "type": "system", "payload": { "command": "start tg://" } },
+      "enabled": true
+    },
+    {
+      "index": 1,
+      "icon": "chrome",
+      "label": "Chrome",
+      "action": { "type": "system", "payload": { "command": "start chrome" } },
+      "enabled": true
+    },
+    { "index": 2, "icon": "empty", "label": "", "action": null, "enabled": false },
+    { "index": 3, "icon": "empty", "label": "", "action": null, "enabled": false },
+    { "index": 4, "icon": "empty", "label": "", "action": null, "enabled": false },
+    { "index": 5, "icon": "empty", "label": "", "action": null, "enabled": false },
+    { "index": 6, "icon": "empty", "label": "", "action": null, "enabled": false },
+    { "index": 7, "icon": "empty", "label": "", "action": null, "enabled": false }
+  ]
+}
