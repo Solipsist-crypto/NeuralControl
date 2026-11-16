@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.types import GESTURE_TRANSLATIONS, GESTURES_JSON
+from core.types import GESTURE_REGISTRY_JSON, GESTURE_TRANSLATIONS
 
 
 class HelpTab(QWidget):
@@ -41,8 +41,8 @@ class HelpTab(QWidget):
         tools.addWidget(QLabel("РУКА"))
         self.hand_filter = QComboBox()
         self.hand_filter.addItem("Всі", "")
-        self.hand_filter.addItem("Ліва", "left")
-        self.hand_filter.addItem("Права", "right")
+        self.hand_filter.addItem("Ліва", "LEFT")
+        self.hand_filter.addItem("Права", "RIGHT")
         self.hand_filter.currentIndexChanged.connect(self._render_cards)
         tools.addWidget(self.hand_filter)
         layout.addWidget(toolbar)
@@ -86,15 +86,16 @@ class HelpTab(QWidget):
 
     def _load_gestures(self):
         try:
-            data = json.loads(GESTURES_JSON.read_text(encoding="utf-8"))
+            gestures = json.loads(
+                GESTURE_REGISTRY_JSON.read_text(encoding="utf-8")
+            )
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
             self._load_error = f"Не вдалося завантажити довідку:\n{error}"
             self._render_cards()
             return
 
-        gestures = data.get("gestures") if isinstance(data, dict) else None
         if not isinstance(gestures, list):
-            self._load_error = "Файл gestures.json має некоректний формат."
+            self._load_error = "Файл gesture_registry.json має некоректний формат."
             self._render_cards()
             return
 
@@ -116,13 +117,13 @@ class HelpTab(QWidget):
         hand = self.hand_filter.currentData()
         matching = []
         for gesture in self._gestures:
-            gesture_hand = gesture.get("hand", "")
-            if hand and gesture_hand not in (hand, "both"):
+            gesture_hand = str(gesture.get("hand", "ANY")).upper()
+            if hand and gesture_hand not in (hand, "ANY", "BOTH"):
                 continue
             searchable = " ".join(
                 (
                     self._gesture_name(gesture),
-                    str(gesture.get("id", "")),
+                    str(gesture.get("pose", "")),
                     str(gesture.get("name", "")),
                     str(gesture.get("description", "")),
                     str(gesture.get("emoji", "")),
@@ -177,11 +178,14 @@ class HelpTab(QWidget):
         header.addWidget(title, 1)
 
         hand_names = {
-            "left": "ЛІВА",
-            "right": "ПРАВА",
-            "both": "ОБИДВІ",
+            "LEFT": "ЛІВА",
+            "RIGHT": "ПРАВА",
+            "BOTH": "ОБИДВІ",
+            "ANY": "БУДЬ-ЯКА",
         }
-        hand_badge = QLabel(hand_names.get(gesture.get("hand"), "РУКА"))
+        hand_badge = QLabel(
+            hand_names.get(str(gesture.get("hand", "ANY")).upper(), "РУКА")
+        )
         hand_badge.setStyleSheet(
             "color: #8b5cf6; font-size: 10px; font-weight: bold; "
             "border: none; background: transparent;"
@@ -190,7 +194,7 @@ class HelpTab(QWidget):
         layout.addLayout(header)
 
         description = QLabel(
-            str(gesture.get("description", "Опис для цього жесту відсутній."))
+            str(gesture.get("description") or "Дію не налаштовано.")
         )
         description.setWordWrap(True)
         description.setStyleSheet(
@@ -200,7 +204,7 @@ class HelpTab(QWidget):
         layout.addWidget(description)
 
         footer = QHBoxLayout()
-        hold_seconds = float(gesture.get("hold_seconds", 0) or 0)
+        hold_seconds = float(gesture.get("hold_ms", 0) or 0) / 1000.0
         if hold_seconds > 0:
             hold_label = QLabel(f"⏱ Утримувати {hold_seconds:g} сек")
             hold_label.setStyleSheet(
@@ -221,9 +225,9 @@ class HelpTab(QWidget):
 
     @staticmethod
     def _gesture_name(gesture):
-        gesture_id = str(gesture.get("id", "")).upper()
+        gesture_id = str(gesture.get("pose", "")).upper()
         return GESTURE_TRANSLATIONS.get(
-            gesture_id, str(gesture.get("name", "Невідомий жест"))
+            gesture_id, str(gesture.get("name", gesture_id or "Невідомий жест"))
         )
 
     def _add_message(self, message):

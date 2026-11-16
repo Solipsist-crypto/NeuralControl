@@ -35,12 +35,21 @@ class HandTracker:
         if result.hand_landmarks:
             for i, lm in enumerate(result.hand_landmarks):
                 raw_side = result.handedness[i][0].category_name
-                actual_side = HandSide.RIGHT if raw_side == "Right" else HandSide.LEFT
+                actual_side = self._actual_hand_side(raw_side)
                 pts = np.array([[p.x, p.y, p.z] for p in lm], dtype=np.float32)
                 conf = result.handedness[i][0].score
                 hands.append(HandLandmarks(side=actual_side, points=pts, confidence=conf))
 
         return FrameResult(hands=hands)
+
+    @staticmethod
+    def _actual_hand_side(mirrored_side: str) -> HandSide:
+        # CameraThread mirrors frames, so MediaPipe's handedness must be flipped back.
+        if mirrored_side == "Left":
+            return HandSide.RIGHT
+        if mirrored_side == "Right":
+            return HandSide.LEFT
+        raise ValueError(f"Unknown MediaPipe handedness: {mirrored_side}")
 
     def close(self):
         self.detector.close()

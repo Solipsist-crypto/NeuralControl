@@ -96,13 +96,21 @@ class VideoView(QWidget):
         
         self.hands = []
         for slot, pts in tracked_hands.items():
-            pts_np = np.array(pts)
+            pts_np = np.asarray(pts)[:, :2]
             prediction, confidence = (
-                predictions.get(slot, (None, None)) if predictions else (None, None)
+                predictions.get(
+                    slot,
+                    predictions.get(
+                        "BOTH",
+                        predictions.get("ANY", (None, None)),
+                    ),
+                )
+                if predictions
+                else (None, None)
             )
             label = (
                 GESTURE_TRANSLATIONS.get(prediction, prediction)
-                if prediction else "МОДЕЛЬ НЕ ЗАВАНТАЖЕНО"
+                if prediction else "НЕ РОЗПІЗНАНО"
             )
             if confidence is not None:
                 label += f" ({confidence:.0%})"

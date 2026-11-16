@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "9664579b29314a7ea839e632685d98dc",
+      "name": "",
+      "triggers": [
+        {
+          "pose": "ЛІВИЙ_КУЛАК",
+          "hand": "LEFT"
+        }
+      ],
+      "combination": false,
+      "hold_ms": 110,
+      "enabled": true,
+      "actions": [
+        {
+          "action": "Відкрити посилання",
+          "params": {
+            "url": "https://classroom.google.com/u/0/c/ODc2NDI1NzQyMjE3?hl=ru"
+          }
+        }
+      ]
+    },
+    {
+      "id": "a0c8e6dbc8b0426ba4ef7a23f4db06c1",
+      "name": "",
+      "triggers": [
+        {
+          "pose": "ЛІВА_ЛОДОНЬ",
+          "hand": "RIGHT"
+        }
+      ],
+      "combination": false,
+      "hold_ms": 300,
+      "enabled": true,
+      "actions": [
+        {
+          "action": "Режим Мишки",
+          "params": {}
+        }
+      ]
+    }
+  ]
+}

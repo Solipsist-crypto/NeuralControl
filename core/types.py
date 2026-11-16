@@ -27,7 +27,7 @@ ARCHIVES_DIR = DATA_DIR / "archives"
 DRAWINGS_DIR = DATA_DIR / "drawings"
 ASSETS_DIR = ROOT / "assets"
 
-GESTURES_JSON = DATA_DIR / "gestures.json"
+GESTURE_REGISTRY_JSON = DATA_DIR / "gesture_registry.json"
 RADIAL_MENU_JSON = DATA_DIR / "radial_menu.json"
 SETTINGS_JSON = DATA_DIR / "settings.json"
 HAND_MODEL_PATH = ASSETS_DIR / "hand_landmarker.task"
@@ -53,6 +53,55 @@ GESTURE_TRANSLATIONS = {
     "LEFT_OPEN": "ЛІВА ДОЛОНЯ",
     "RIGHT_OPEN": "ПРАВА ДОЛОНЯ",
     "LEFT_POINT": "ЛІВИЙ ВКАЗІВНИЙ",
+    "FIST": "КУЛАК",
+    "OPEN": "ДОЛОНЯ",
+    "POINT": "ВКАЗІВНИЙ ПАЛЕЦЬ",
+    "POINT_DOWN": "ПАЛЕЦЬ ВНИЗ",
+    "PINCH": "ЩИПОК",
+    "ROCK": "РОК",
+    "PEACE": "V-ПОЗА",
+    "THUMB_UP": "ПАЛЕЦЬ ВГОРУ",
+    "THUMB_DOWN": "ПАЛЕЦЬ ВНИЗ",
+    "OK": "ЖЕСТ «ОК»",
+    "THREE": "ТРИ ПАЛЬЦІ",
+    "FOUR": "ЧОТИРИ ПАЛЬЦІ",
+    "PINKY_UP": "МІЗИНЕЦЬ ВГОРУ",
+    "MIDDLE_UP": "СЕРЕДНІЙ ПАЛЕЦЬ ВГОРУ",
+    "CALL_ME": "ПОДЗВОНИ МЕНІ",
+    "GUN": "ПІСТОЛЕТ",
+    "CLAW": "КІГТІ",
+    "C_SHAPE": "ФОРМА C",
+    "PINCH_MIDDLE": "ЩИПОК СЕРЕДНІМ ПАЛЬЦЕМ",
+    "PINCH_RING": "ЩИПОК БЕЗІМЕННИМ ПАЛЬЦЕМ",
+    "PINCH_PINKY": "ЩИПОК МІЗИНЦЕМ",
+    "COUNT_1": "ОДИН",
+    "COUNT_2": "ДВА",
+    "COUNT_3": "ТРИ",
+    "COUNT_4": "ЧОТИРИ",
+    "COUNT_5": "П'ЯТЬ",
+    "BOTH_PINCH": "ЩИПОК ОБОМА РУКАМИ",
+    "BOTH_POINT": "ДВА ВКАЗІВНІ ПАЛЬЦІ",
+    "BOTH_PEACE": "ДВІ V-ПОЗИ",
+    "BOTH_THUMB_UP": "ОБИДВА ПАЛЬЦІ ВГОРУ",
+    "CLAP_POSE": "ПОЗА ДЛЯ АПЛОДИСМЕНТІВ",
+    "T_SHAPE": "ФОРМА T",
+    "FRAME": "РАМКА",
+    "X_CROSS": "ПЕРЕХРЕСТЯ",
+    "VULCAN": "ВУЛКАН",
+    "I_LOVE_YOU": "ЛЮБЛЮ",
+    "BOTH_HEART": "СЕРЦЕ ОБОМА РУКАМИ",
+    "CROSSED_FINGERS": "ПЕРЕХРЕЩЕНІ ПАЛЬЦІ",
+    "WAVE": "ПОМАХ",
+    "SWIPE_LEFT": "СВАЙП ЛІВОРУЧ",
+    "SWIPE_RIGHT": "СВАЙП ПРАВОРУЧ",
+    "SWIPE_UP": "СВАЙП ВГОРУ",
+    "SWIPE_DOWN": "СВАЙП ВНИЗ",
+    "CIRCLE_CW": "КОЛО ЗА ГОДИННИКОВОЮ СТРІЛКОЮ",
+    "CIRCLE_CCW": "КОЛО ПРОТИ ГОДИННИКОВОЇ СТРІЛКИ",
+    "ZOOM_IN": "ЗБІЛЬШЕННЯ",
+    "ZOOM_OUT": "ЗМЕНШЕННЯ",
+    "DRAW_CHECK": "ГАЛОЧКА В ПОВІТРІ",
+    "DRAW_X": "ХРЕСТИК У ПОВІТРІ",
 }
 
 # Тривалості утримання
@@ -78,6 +127,7 @@ class HandSide(Enum):
     LEFT = "left"
     RIGHT = "right"
     BOTH = "both"
+    ANY = "any"
 
 
 # =========================================================
@@ -142,7 +192,7 @@ class GestureAction:
 
 @dataclass
 class GestureDefinition:
-    """Повний опис жесту з gestures.json."""
+    """Повний опис жесту з gesture_registry.json."""
     id: str
     name: str
     emoji: str

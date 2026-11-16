@@ -1,5 +1,8 @@
+import json
 import os
+import re
 import time
+from pathlib import Path
 import numpy as np
 import joblib
 from sklearn.metrics import accuracy_score, confusion_matrix
@@ -8,7 +11,18 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
-from core.types import MODELS_DIR, SAMPLES_DIR
+from core.types import (
+    GESTURE_REGISTRY_JSON,
+    MODELS_DIR,
+    SAMPLES_DIR,
+    TOTAL_FEATURES,
+)
+
+FEATURE_MIGRATIONS = {
+    42: (1, 21, 2),
+    63: (1, 21, 3),
+    84: (2, 21, 2),
+}
 
 HAND_LANDMARK_NAMES = (
     "зап'ястя",
@@ -36,10 +50,17 @@ HAND_LANDMARK_NAMES = (
 
 
 class TrainingService:
-    def __init__(self):
-        self.model_path = MODELS_DIR / "gesture_model.joblib"
-        self.data_path = SAMPLES_DIR / "gesture_samples.npz"
+    def __init__(self, data_path=None, model_path=None, registry_path=None):
+        self.model_path = Path(model_path) if model_path else MODELS_DIR / "gesture_model.joblib"
+        self.data_path = Path(data_path) if data_path else SAMPLES_DIR / "gesture_samples.npz"
+        self.registry_path = (
+            Path(registry_path) if registry_path else GESTURE_REGISTRY_JSON
+        )
         self.model = None
+        self.model_error = None
+        self.data_error = None
+        self.migration_notice = None
+        self.model_stale = False
         self.accuracy = None
         self.accuracy_ids = None
         self.classes = []
@@ -48,16 +69,49 @@ class TrainingService:
         self.X_data = np.array([])
         self.y_data = np.array([])
         self.ids_data = np.array([], dtype=float)
-        self.load_data()
+        try:
+            self.load_data()
+        except (OSError, KeyError, ValueError) as error:
+            self.data_error = f"Не вдалося завантажити навчальні дані: {error}"
+            self.X_data = np.empty((0, TOTAL_FEATURES), dtype=np.float32)
+            self.y_data = np.array([], dtype=str)
+            self.ids_data = np.array([], dtype=float)
+            self.classes = []
         self.load_model()
 
     def load_model(self):
         if not self.model_path.exists():
             return
 
-        saved_model = joblib.load(self.model_path)
+        try:
+            saved_model = joblib.load(self.model_path)
+            model = (
+                saved_model["model"]
+                if isinstance(saved_model, dict)
+                else saved_model
+            )
+        except (
+            OSError,
+            EOFError,
+            ImportError,
+            AttributeError,
+            KeyError,
+            ValueError,
+        ) as error:
+            self.model_error = f"Не вдалося завантажити модель: {error}"
+            return
+
+        feature_count = getattr(model, "n_features_in_", None)
+        if feature_count is not None and int(feature_count) != TOTAL_FEATURES:
+            self.model_error = (
+                f"Модель має {feature_count} ознак; потрібно {TOTAL_FEATURES}. "
+                "Перенавчіть її на оновлених даних."
+            )
+            return
+
+        self.model = model
+        self.model_error = None
         if isinstance(saved_model, dict):
-            self.model = saved_model["model"]
             saved_ids = saved_model.get("accuracy_ids")
             if (
                 saved_model.get("accuracy") is not None
@@ -66,39 +120,94 @@ class TrainingService:
             ):
                 self.accuracy = float(saved_model["accuracy"])
                 self.accuracy_ids = self.ids_data.copy()
-        else:
-            self.model = saved_model
+            elif saved_ids is not None:
+                self.model_stale = True
 
     def load_data(self):
         if self.data_path.exists():
             with np.load(self.data_path, allow_pickle=True) as data:
-                self.X_data = data["X"]
-                self.y_data = data["y"]
+                self.X_data = np.asarray(data["X"], dtype=np.float32)
+                raw_labels = np.asarray(data["y"], dtype=str)
+                self.y_data = np.asarray(
+                    [self.normalize_gesture_name(label) for label in raw_labels],
+                    dtype=str,
+                )
                 self.ids_data = (
                     np.asarray(data["ids"], dtype=float)
                     if "ids" in data.files
                     else np.array([], dtype=float)
+                )
+            if self.X_data.ndim != 2:
+                raise ValueError("Файл прикладів має містити двовимірний масив X.")
+            if self.X_data.shape[1] in FEATURE_MIGRATIONS:
+                old_feature_count = self.X_data.shape[1]
+                self.X_data = self._migrate_features(self.X_data)
+                self.save_data()
+                self.migration_notice = (
+                    f"Старі приклади ({old_feature_count} ознаки) доповнено до "
+                    f"{TOTAL_FEATURES}. Для точнішого результату перезапишіть "
+                    "двуручні жести та приклади з глибиною."
+                )
+            elif not np.array_equal(raw_labels, self.y_data):
+                self.model_stale = True
+                self.save_data()
+            elif self.X_data.shape[1] != TOTAL_FEATURES:
+                raise ValueError(
+                    f"Знайдено {self.X_data.shape[1]} ознак; очікується "
+                    f"{TOTAL_FEATURES}."
                 )
             self.classes = list(np.unique(self.y_data))
             if len(self.ids_data) != len(self.y_data):
                 count = len(self.y_data)
                 self.ids_data = time.time() - np.arange(count, 0, -1) * 1e-6
                 self.save_data()
+            self.ensure_registry_entries(self.classes)
+
+    @staticmethod
+    def _migrate_features(features):
+        old_count = features.shape[1]
+        hand_count, landmark_count, coordinate_count = FEATURE_MIGRATIONS[old_count]
+        legacy = features.reshape(-1, hand_count, landmark_count, coordinate_count)
+        migrated = np.zeros(
+            (len(features), 2, 21, 3),
+            dtype=np.float32,
+        )
+        migrated[:, :hand_count, :, :coordinate_count] = legacy
+        return migrated.reshape(-1, TOTAL_FEATURES)
 
     def save_data(self):
+        self.data_path.parent.mkdir(parents=True, exist_ok=True)
         np.savez(self.data_path, X=self.X_data, y=self.y_data, ids=self.ids_data)
 
     def add_sample(self, gesture_name: str, features: np.ndarray):
-        # Додаємо новий приклад
+        return self.add_samples(gesture_name, np.asarray(features).reshape(1, -1))
+
+    def add_samples(self, gesture_name: str, samples: np.ndarray):
+        if self.data_error:
+            raise ValueError(self.data_error)
+        gesture_name = self.normalize_gesture_name(gesture_name)
+        samples = np.asarray(samples, dtype=np.float32)
+        if samples.ndim == 1:
+            samples = samples.reshape(1, -1)
+        if samples.ndim != 2 or samples.shape[1] != TOTAL_FEATURES:
+            raise ValueError(
+                f"Кожен приклад має містити {TOTAL_FEATURES} ознак."
+            )
+        if len(samples) == 0:
+            raise ValueError("Потрібен хоча б один приклад жесту.")
+        if not np.isfinite(samples).all():
+            raise ValueError("Ознаки жесту містять нескінченні або некоректні значення.")
         self.accuracy = None
         self.accuracy_ids = None
-        features = features.flatten()
+        self.model_stale = True
         if len(self.X_data) == 0:
-            self.X_data = np.array([features])
-            self.y_data = np.array([gesture_name])
+            self.X_data = samples.copy()
+            self.y_data = np.full(len(samples), gesture_name)
         else:
-            self.X_data = np.vstack([self.X_data, features])
-            self.y_data = np.append(self.y_data, gesture_name)
+            self.X_data = np.vstack([self.X_data, samples])
+            self.y_data = np.append(
+                self.y_data, np.full(len(samples), gesture_name)
+            )
         
         if gesture_name not in self.classes:
             self.classes.append(gesture_name)
@@ -106,10 +215,61 @@ class TrainingService:
         sample_id = time.time()
         if len(self.ids_data):
             sample_id = max(sample_id, float(np.max(self.ids_data)) + 1e-6)
-            while np.any(self.ids_data == sample_id):
-                sample_id += 1e-6
-        self.ids_data = np.append(self.ids_data, sample_id)
+        sample_ids = sample_id + np.arange(len(samples), dtype=np.float64) * 1e-6
+        self.ids_data = np.append(self.ids_data, sample_ids)
         self.save_data()
+        self.ensure_registry_entries([gesture_name])
+        return gesture_name
+
+    @staticmethod
+    def normalize_gesture_name(gesture_name):
+        normalized = re.sub(r"\s+", "_", str(gesture_name).strip()).upper()
+        if not normalized:
+            raise ValueError("Назва жесту не може бути порожньою.")
+        return normalized
+
+    def ensure_registry_entries(self, poses):
+        try:
+            registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            registry = []
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(
+                f"Не вдалося прочитати реєстр жестів {self.registry_path}: {error}"
+            ) from error
+        if not isinstance(registry, list):
+            raise ValueError("Реєстр жестів має містити JSON-масив.")
+
+        existing = {
+            entry.get("pose"): entry
+            for entry in registry
+            if isinstance(entry, dict) and isinstance(entry.get("pose"), str)
+        }
+        added = False
+        for pose in poses:
+            normalized = self.normalize_gesture_name(pose)
+            if normalized not in existing:
+                registry.append({
+                    "pose": normalized,
+                    "hand": "ANY",
+                    "action": "",
+                    "hold_ms": 500,
+                    "enabled": True,
+                })
+                added = True
+        if not added:
+            return
+
+        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.registry_path.write_text(
+                json.dumps(registry, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as error:
+            raise OSError(
+                f"Не вдалося зберегти реєстр жестів {self.registry_path}: {error}"
+            ) from error
 
     def delete_sample(self, index: int):
         if index < 0 or index >= len(self.y_data):
@@ -121,11 +281,18 @@ class TrainingService:
         self.classes = list(np.unique(self.y_data))
         self.accuracy = None
         self.accuracy_ids = None
+        self.model_stale = True
         self.save_data()
 
     def train_model(self):
+        if self.data_error:
+            return False, self.data_error
         if len(self.X_data) < 10:
             return False, "Потрібно більше прикладів (мін. 10)"
+        if len(np.unique(self.y_data)) < 2:
+            return False, "Для навчання потрібні приклади щонайменше двох жестів."
+        if self.X_data.ndim != 2 or self.X_data.shape[1] != TOTAL_FEATURES:
+            return False, f"Дані мають містити {TOTAL_FEATURES} ознак на приклад."
             
         # Створюємо пайплайн: нормалізація + нейромережа (MLP)
         self.model = make_pipeline(
@@ -144,8 +311,11 @@ class TrainingService:
             accuracy_score(y_test, self.model.predict(X_test))
         )
         self.accuracy_ids = self.ids_data.copy()
+        self.model_error = None
+        self.model_stale = False
         
         # Зберігаємо модель на диск
+        self.model_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({
             "model": self.model,
             "classes": self.classes,
@@ -180,6 +350,14 @@ class TrainingService:
     def get_feature_names(self, feature_count: int | None = None) -> list[str]:
         if feature_count is None:
             feature_count = self.X_data.shape[1] if self.X_data.ndim == 2 else 0
+        if feature_count == TOTAL_FEATURES:
+            axes = ("X", "Y", "Z")
+            return [
+                f"{side} — {axis} — {landmark}"
+                for side in ("Ліва рука", "Права рука")
+                for landmark in HAND_LANDMARK_NAMES
+                for axis in axes
+            ]
         coordinate_count = feature_count // len(HAND_LANDMARK_NAMES)
         if feature_count % len(HAND_LANDMARK_NAMES) or coordinate_count not in (2, 3):
             return [f"Ознака {i + 1}" for i in range(feature_count)]
@@ -210,6 +388,10 @@ class TrainingService:
         self.classes = []
         self.accuracy = None
         self.accuracy_ids = None
+        self.data_error = None
+        self.migration_notice = None
+        self.model_error = None
+        self.model_stale = False
         if self.data_path.exists():
             os.remove(self.data_path)
         if self.model_path.exists():

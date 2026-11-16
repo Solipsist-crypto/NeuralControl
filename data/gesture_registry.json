@@ -1,0 +1,366 @@
+[
+  {
+    "pose": "FIST",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "OPEN",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "POINT",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "POINT_DOWN",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PINCH",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PEACE",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "THUMB_UP",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "THUMB_DOWN",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ROCK",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "OK",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "THREE",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "FOUR",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PINKY_UP",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "MIDDLE_UP",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "CALL_ME",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "GUN",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "CLAW",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "C_SHAPE",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PINCH_MIDDLE",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PINCH_RING",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "PINCH_PINKY",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "COUNT_1",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "COUNT_2",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "COUNT_3",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "COUNT_4",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "COUNT_5",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "BOTH_PINCH",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "BOTH_POINT",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "BOTH_PEACE",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "BOTH_THUMB_UP",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "CLAP_POSE",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "T_SHAPE",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "FRAME",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "X_CROSS",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "VULCAN",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 1000,
+    "enabled": true
+  },
+  {
+    "pose": "I_LOVE_YOU",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 1000,
+    "enabled": true
+  },
+  {
+    "pose": "BOTH_HEART",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 1000,
+    "enabled": true
+  },
+  {
+    "pose": "CROSSED_FINGERS",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 1000,
+    "enabled": true
+  },
+  {
+    "pose": "WAVE",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "SWIPE_LEFT",
+    "hand": "RIGHT",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "SWIPE_RIGHT",
+    "hand": "RIGHT",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "SWIPE_UP",
+    "hand": "RIGHT",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "SWIPE_DOWN",
+    "hand": "RIGHT",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "CIRCLE_CW",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "CIRCLE_CCW",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ZOOM_IN",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ZOOM_OUT",
+    "hand": "BOTH",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "DRAW_CHECK",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "DRAW_X",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ЛІВА_ЛОДОНЬ",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ЛІВИЙ_КУЛАК",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  },
+  {
+    "pose": "ПРАВА_ЛОДОНЬ",
+    "hand": "ANY",
+    "action": "",
+    "hold_ms": 500,
+    "enabled": true
+  }
+]
