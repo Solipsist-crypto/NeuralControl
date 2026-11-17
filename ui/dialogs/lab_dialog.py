@@ -32,7 +32,15 @@ MUTED = "#64748b"
 
 
 class LabDialog(QDialog):
+    """Run exploratory machine-learning demonstrations on recorded gestures."""
+
     def __init__(self, training_service, parent=None):
+        """Create lab tabs backed by the shared training dataset.
+
+        Args:
+            training_service: Source of recorded feature vectors and labels.
+            parent: Optional owner widget.
+        """
         super().__init__(parent)
         self.training_service = training_service
         self.setWindowTitle("ЛАБОРАТОРНІ РОБОТИ")

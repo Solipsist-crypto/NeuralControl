@@ -9,12 +9,16 @@ from services.neural_pose import NeuralPose
 
 
 class GestureState(Enum):
+    """Gesture engine lifecycle states."""
+
     SLEEP = "SLEEP"
     ARMED = "ARMED"
     MOUSE = "MOUSE"
 
 
 class GestureEngine(QObject):
+    """Coordinate hand tracking, neural inference, gesture stability, and modes."""
+
     processed_frame = Signal(object, object, object)
     state_changed = Signal(str)
     gesture_detected = Signal(str, str, str)
@@ -26,6 +30,12 @@ class GestureEngine(QObject):
     STABLE_CHANGE_FRAMES = 2
 
     def __init__(self, hand_tracker=None, neural_pose=None):
+        """Create an engine with optional injectable tracker and neural model.
+
+        Args:
+            hand_tracker: Optional object that returns ``FrameResult`` instances.
+            neural_pose: Optional neural classifier used for gesture inference.
+        """
         super().__init__()
         self.tracker = hand_tracker or HandTracker()
         self.neural_pose = neural_pose or NeuralPose()
@@ -41,6 +51,11 @@ class GestureEngine(QObject):
         self._last_frame_time = 0.0
 
     def set_enabled(self, enabled):
+        """Enable recognition or return the engine to its sleeping state.
+
+        Args:
+            enabled: Whether gesture recognition should be active.
+        """
         enabled = bool(enabled)
         if self.enabled == enabled:
             return
@@ -55,10 +70,19 @@ class GestureEngine(QObject):
         self._set_state(GestureState.ARMED if enabled else GestureState.SLEEP)
 
     def reload_model(self):
+        """Reload the classifier and clear cached per-hand recognition state."""
         self.neural_pose.reload_model()
         self._reset_slots()
 
     def set_mouse_mode(self, enabled, exit_gestures=(), entry_pose=None, entry_hand=None):
+        """Enter or leave mouse mode and configure its permitted exit gestures.
+
+        Args:
+            enabled: ``True`` to enter mouse mode; ``False`` to leave it.
+            exit_gestures: Gesture IDs accepted as exit gestures.
+            entry_pose: Gesture that activated mouse mode, if known.
+            entry_hand: Hand side that activated mouse mode, if known.
+        """
         if enabled:
             gestures = tuple(dict.fromkeys(exit_gestures))
             if not gestures and entry_pose:
@@ -96,6 +120,14 @@ class GestureEngine(QObject):
             self._set_state(GestureState.ARMED if self.enabled else GestureState.SLEEP)
 
     def process_frame(self, frame):
+        """Process a camera frame, emit landmark/prediction data, and update state.
+
+        Args:
+            frame: Camera image in BGR format.
+
+        Returns:
+            ``None``; results and recognition errors are emitted through signals.
+        """
         now = time.monotonic()
         self._last_frame_time = now
         result = self.tracker.process(frame)
@@ -312,6 +344,7 @@ class GestureEngine(QObject):
         if previous_signature is not None:
             distance = self._signature_distance(signature, previous_signature)
             if distance <= self.POSE_CHANGE_THRESHOLD:
+                # Reuse the cached label while the normalized pose stays stable.
                 state["candidate"] = None
                 state["candidate_frames"] = 0
                 if state["pose"] is not None:
@@ -407,6 +440,7 @@ class GestureEngine(QObject):
         palm_scale = float(np.linalg.norm(xy[5] - xy[17]))
         if palm_scale < 1e-5:
             palm_scale = 1.0
+        # Wrist-centering and palm-width scaling make pose-change checks position- and scale-invariant.
         return ((xy - origin) / palm_scale).reshape(-1)
 
     @staticmethod
@@ -444,6 +478,7 @@ class GestureEngine(QObject):
         self.state_changed.emit(state.value)
 
     def stop(self):
+        """Close the tracker when it exposes a cleanup method."""
         close_tracker = getattr(self.tracker, "close", None)
         if close_tracker is not None:
             close_tracker()

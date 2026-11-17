@@ -12,16 +12,33 @@ VALID_HANDS = {"LEFT", "RIGHT", "ANY", "BOTH"}
 
 
 class RuleValidationError(ValueError):
+    """Raised when a rule document or individual rule has an invalid shape."""
+
     pass
 
 
 class RuleStore:
+    """Validate, persist, and mutate user-defined gesture action rules."""
+
     def __init__(self, path=None):
+        """Load rules from an optional path or the application's default file.
+
+        Args:
+            path: Optional JSON file path used in place of the default rules file.
+        """
         self.path = Path(path) if path else RULES_PATH
         self.rules = []
         self.load()
 
     def load(self):
+        """Read and validate the on-disk rules.
+
+        Returns:
+            A deep copy of the validated rule list.
+
+        Raises:
+            RuleValidationError: If the file contains invalid JSON or rule data.
+        """
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
@@ -46,6 +63,7 @@ class RuleStore:
         return deepcopy(self.rules)
 
     def save(self):
+        """Atomically persist the current rules as UTF-8 JSON."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         document = {"version": 1, "rules": self.rules}
         temporary_path = self.path.with_name(self.path.name + ".tmp")
@@ -59,6 +77,14 @@ class RuleStore:
             raise OSError(f"Не вдалося зберегти правила у {self.path}: {error}") from error
 
     def add(self, rule):
+        """Validate and append a rule, rolling back if persistence fails.
+
+        Args:
+            rule: Rule mapping to validate and store.
+
+        Returns:
+            A deep copy of the saved rule, including its generated identifier.
+        """
         rule = self._validate_rule(rule)
         rule["id"] = rule.get("id") or uuid.uuid4().hex
         if any(existing["id"] == rule["id"] for existing in self.rules):
@@ -72,6 +98,18 @@ class RuleStore:
         return deepcopy(rule)
 
     def update(self, rule_id, rule):
+        """Replace an existing rule while preserving its identifier.
+
+        Args:
+            rule_id: Identifier of the rule to replace.
+            rule: New rule contents.
+
+        Returns:
+            A deep copy of the updated rule.
+
+        Raises:
+            KeyError: If no rule with ``rule_id`` exists.
+        """
         updated = self._validate_rule(rule)
         for index, existing in enumerate(self.rules):
             if existing["id"] == rule_id:
@@ -86,6 +124,14 @@ class RuleStore:
         raise KeyError(f"Правило {rule_id} не знайдено.")
 
     def delete(self, rule_id):
+        """Remove a rule and restore the prior list if saving fails.
+
+        Args:
+            rule_id: Identifier of the rule to delete.
+
+        Raises:
+            KeyError: If no rule with ``rule_id`` exists.
+        """
         updated = [rule for rule in self.rules if rule["id"] != rule_id]
         if len(updated) == len(self.rules):
             raise KeyError(f"Правило {rule_id} не знайдено.")
@@ -169,7 +215,14 @@ class RuleStore:
 
 
 class RuleEngine:
+    """Track matching predictions and trigger rules after their hold duration."""
+
     def __init__(self, store=None):
+        """Initialize hold tracking around a rule store.
+
+        Args:
+            store: Optional ``RuleStore`` instance.
+        """
         self.store = store or RuleStore()
         self._active = {}
         self._fired = set()
@@ -177,18 +230,30 @@ class RuleEngine:
 
     @property
     def rules(self):
+        """Return the rules currently held by the store."""
         return self.store.rules
 
     def reload(self):
+        """Reload rules from disk and clear active hold timers."""
         self.store.load()
         self.reset()
 
     def reset(self):
+        """Clear active rule matches, fired flags, and hold progress."""
         self._active.clear()
         self._fired.clear()
         self.hold_progress = 0.0
 
     def update(self, predictions, now=None):
+        """Evaluate rule matches and emit each held rule once per activation.
+
+        Args:
+            predictions: Mapping of hand slots to prediction tuples.
+            now: Optional monotonic timestamp used for deterministic evaluation.
+
+        Returns:
+            Deep copies of rules whose hold duration has just elapsed.
+        """
         now = time.monotonic() if now is None else float(now)
         current = {}
         for rule in self.store.rules:

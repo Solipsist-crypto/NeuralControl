@@ -17,7 +17,10 @@ from core.types import GESTURE_REGISTRY_JSON, GESTURE_TRANSLATIONS
 
 
 class HelpTab(QWidget):
+    """Search and browse gesture definitions from the registry."""
+
     def __init__(self):
+        """Build the searchable gesture-help view and load registry entries."""
         super().__init__()
         self.setObjectName("HelpTab")
         self.setStyleSheet("QWidget#HelpTab { background-color: #0a0e1a; }")
@@ -80,6 +83,11 @@ class HelpTab(QWidget):
         self._load_gestures()
 
     def resizeEvent(self, event):
+        """Debounce card relayout after the tab is resized.
+
+        Args:
+            event: Qt resize event.
+        """
         super().resizeEvent(event)
         if hasattr(self, "_resize_timer"):
             self._resize_timer.start()

@@ -7,10 +7,12 @@ from core.slots import HandSlots
 from core.types import MODELS_DIR
 
 class GestureController(QObject):
-    # Сигнал: (кадр, координати рук, прогнози {slot_id: (назва, впевненість)})
+    """Legacy frame processor that emits detected hands and model predictions."""
+
     processed_frame = Signal(object, object, object)
 
     def __init__(self):
+        """Initialize the hand tracker, slot manager, and optional trained model."""
         super().__init__()
         self.tracker = HandTracker()
         self.slots = HandSlots(n=2)
@@ -24,17 +26,25 @@ class GestureController(QObject):
 
     @Slot(object)
     def process_frame(self, frame):
+        """Detect hands and emit frame data with optional model predictions.
+
+        Args:
+            frame: Camera image in BGR format.
+
+        Returns:
+            ``None``; results are emitted through ``processed_frame``.
+        """
         result = self.tracker.process(frame)
         
         tracked_hands = {}
         predictions = {} if self.model is not None else None
         if result.has_hands:
-            # Отримуємо сирі точки
+            # Collect raw landmark arrays before assigning stable hand slots.
             hands_arrays = [h.points for h in result.hands]
-            # Оновлюємо слоти (фільтруємо)
+            # Assign slots and smooth each hand's landmarks.
             tracked_dict = self.slots.update(hands_arrays, time.monotonic())
             
-            # Перетворюємо numpy-масиви в звичайні списки, щоб уникнути проблем з пам'яттю в Qt
+            # Convert arrays to Python values before crossing the Qt signal boundary.
             for slot, pts in tracked_dict.items():
                 hand_points = [(float(p[0]), float(p[1])) for p in pts]
                 tracked_hands[slot] = hand_points
@@ -48,4 +58,5 @@ class GestureController(QObject):
         self.processed_frame.emit(frame, tracked_hands, predictions)
 
     def stop(self):
+        """Release the hand-tracking model."""
         self.tracker.close()

@@ -16,7 +16,10 @@ VIOLET = QColor("#8b5cf6")
 
 
 class HudBackground(QWidget):
+    """Paint a rounded dark HUD surface with grid, glow, and corner marks."""
+
     def paintEvent(self, _):
+        """Render the background decoration for the current widget bounds."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)

@@ -34,3 +34,11 @@ data/*.log
 
 # PyInstaller
 *.spec
+!neuralcontrol.spec
+
+release/
+*.zip
+*.exe
+*.spec
+build/
+dist/

@@ -1,59 +1,68 @@
-# ⚡ NeuralControl — Neural Hand Control System
+# NeuralControl
 
-Система управління ПК жестами рук через вебкамеру.
-Нейромережа (MLP) для розпізнавання жестів, дообучення,
-кругове меню, режим малювання, робота у фоні.
+NeuralControl is a Windows desktop application that recognizes hand gestures
+from a webcam and maps them to user-configured actions. It uses MediaPipe for
+hand-landmark tracking, a scikit-learn neural model for gesture classification,
+and PySide6 for the HUD-style interface.
 
-## Вимоги
+## Features
 
-- Python 3.10+
-- Вебкамера
-- Windows 10/11
+- Real-time recognition of single-hand and two-hand gestures.
+- Gesture sample recording and model training in the Training tab.
+- Rules for individual gestures, simultaneous combinations, and action sequences.
+- Gesture-controlled cursor mode and interactive drawing.
+- Dataset statistics and model evaluation metrics.
 
-## Встановлення
+## Requirements
 
-```bash
-# 1. Клонувати
-git clone <url>
-cd NeuralControl
+- Windows 10/11.
+- Python 3.10 or newer.
+- A webcam.
+- The MediaPipe hand-landmarker model at `assets/hand_landmarker.task`.
 
-# 2. venv
+## Run from source
+
+Create and activate a virtual environment from the project root, install the
+dependencies, and start the application:
+
+```powershell
 python -m venv venv
-venv\Scripts\activate
-
-# 3. Залежності
-pip install -r requirements.txt
-
-# 4. Модель MediaPipe → покласти hand_landmarker.task у assets/
-Запуск
-bash
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 python main.py
-Структура
-text
-NeuralControl/
-├── core/        # Логіка (MediaPipe, моделі, фільтри)
-├── services/    # Контролери, потоки, диспетчер дій
-├── ui/          # PySide6 інтерфейс
-├── labs/        # Лабораторні роботи 4-8
-├── data/        # JSON-конфіги, моделі, приклади
-└── assets/      # Модель MediaPipe, іконки
-Етапи
-☑ Етап 0: Архітектура, структура, каркас UI
-□ Етап 1: Core (features, hand_tracker, filters)
-□ Етап 2: Services (camera, controller, dispatcher)
-□ Етап 3: UI Вкладка 1 (управління, overlay, режими)
-□ Етап 4: UI Вкладка 2 (навчання, порівняння моделей)
-□ Етап 5: UI Вкладки 3-4 (лаби, довідка)
-□ Етап 6: Кругове меню + Tray icon
-□ Етап 7: Малювання (неон + частинки)
-□ Етап 8: Динамічні жести
-□ Етап 9: EXE
-Ліцензія
-MIT
+```
 
----
+Ensure that `assets/hand_landmarker.task` is present before launching. The
+camera starts automatically in the Control tab. To recognize a new gesture,
+record examples and train the model in the Training tab.
 
-## 📄 `NeuralControl/core/__init__.py`
+## Build the portable release
 
-```python
-"""Ядро NeuralControl: MediaPipe, моделі, фільтри, реєстр жестів."""
+After installing the dependencies, run this command from the project root:
+
+```powershell
+.\build_release.bat
+```
+
+The script builds the application with PyInstaller, stages the EXE, assets,
+and data in `release/`, and creates `NeuralControl_Release.zip`. Extract the
+entire archive into one folder; keep `assets/` and `data/` beside the EXE.
+
+## Documentation
+
+- [Architecture overview](docs/overview.md)
+- [Gesture catalog](docs/gestures.md)
+- [Model training](docs/training.md)
+- [Rules and actions](docs/rules.md)
+
+## Project structure
+
+```text
+core/       Shared types, hand tracking, features, and filters
+services/   Camera, recognition, training, rules, and action execution
+ui/         PySide6 windows, tabs, dialogs, and HUD widgets
+assets/     MediaPipe hand-landmarker model
+data/       Gesture registry, rules, model, and training samples
+docs/       Project, gesture, training, and rules documentation
+scripts/    Release staging and packaging helpers
+```

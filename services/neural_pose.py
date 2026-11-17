@@ -13,6 +13,8 @@ DEFAULT_MODEL_PATH = ROOT / "data" / "models" / "gesture_model.joblib"
 
 
 class NeuralPose:
+    """Load a trained gesture model and classify per-hand or two-hand poses."""
+
     CONFIDENCE_THRESHOLD = 0.9
     VOTE_WINDOW = 10
     REQUIRED_VOTES = 8
@@ -20,6 +22,14 @@ class NeuralPose:
     HAND_SIDES = ("LEFT", "RIGHT")
 
     def __init__(self, model_path=None, model=None, enabled=True, registry_path=None):
+        """Initialize model, registry, and temporal voting state.
+
+        Args:
+            model_path: Optional path to a serialized classifier.
+            model: Optional preloaded classifier, primarily for testing.
+            enabled: Whether model loading and inference are enabled.
+            registry_path: Optional path to the gesture registry JSON file.
+        """
         self.model_path = Path(model_path) if model_path else DEFAULT_MODEL_PATH
         self.registry_path = (
             Path(registry_path) if registry_path else GESTURE_REGISTRY_JSON
@@ -86,6 +96,11 @@ class NeuralPose:
             self.load_error = f"Не вдалося завантажити модель {self.model_path}: {error}"
 
     def set_enabled(self, enabled):
+        """Enable inference and load the model, or disable and clear it.
+
+        Args:
+            enabled: Desired neural-classifier state.
+        """
         enabled = bool(enabled)
         if self.enabled == enabled:
             return
@@ -100,6 +115,7 @@ class NeuralPose:
             self.load_error = None
 
     def reload_model(self):
+        """Refresh registry/model contents and reset pending temporal votes."""
         self.reset()
         self._refresh_gesture_registry(force=True)
         if self.enabled:
@@ -169,6 +185,14 @@ class NeuralPose:
         return int(feature_count) if feature_count is not None else None
 
     def get_gesture_config(self, pose):
+        """Return the registry settings for a gesture, with safe defaults.
+
+        Args:
+            pose: Gesture identifier.
+
+        Returns:
+            Registry entry fields, or a default configuration for the pose.
+        """
         self._refresh_gesture_registry()
         return self.registry_entries.get(
             pose,
@@ -176,16 +200,39 @@ class NeuralPose:
         )
 
     def reset(self, slot=None):
+        """Clear accumulated votes for one hand slot or for all slots.
+
+        Args:
+            slot: Optional hand slot identifier; ``None`` clears every vote queue.
+        """
         if slot is None:
             self._votes.clear()
         else:
             self._votes.pop(str(slot).upper(), None)
 
     def vote_window_full(self, slot):
+        """Check whether a slot has accumulated a complete voting window.
+
+        Args:
+            slot: Hand slot identifier.
+
+        Returns:
+            ``True`` when the slot has enough recent predictions to fill the window.
+        """
         return len(self._votes[str(slot).upper()]) >= self.VOTE_WINDOW
 
     @classmethod
     def features_from_hands(cls, hands):
+        """Pack hand landmarks into the fixed-size neural-network input vector.
+
+        Args:
+            hands: Mapping of ``LEFT``/``RIGHT`` to 21-point coordinate arrays.
+
+        Returns:
+            A float32 vector of ``FEATURE_COUNT`` values, zero-padding missing
+            hands and absent depth coordinates.
+        """
+        # Keep a fixed left-then-right layout; zero-filled slots represent missing data.
         packed = np.zeros((2, 21, 3), dtype=np.float32)
         hand_indexes = {"LEFT": 0, "RIGHT": 1}
         for side, raw_points in hands.items():
@@ -214,6 +261,18 @@ class NeuralPose:
         include_both=False,
         sides=None,
     ):
+        """Classify selected hands and return temporally stable predictions.
+
+        Args:
+            hands: Mapping of hand sides to normalized landmark arrays.
+            excluded_sides: Slots that must not be evaluated.
+            allowed_gestures: Optional gesture-ID allowlist.
+            include_both: Whether to evaluate a combined two-hand feature vector.
+            sides: Optional set of individual hand sides to evaluate.
+
+        Returns:
+            Mapping from slot IDs to ``(gesture_id, confidence)`` predictions.
+        """
         if not self.enabled or self.model is None:
             self.reset()
             return {}
@@ -253,6 +312,15 @@ class NeuralPose:
         return self._predict_feature_batch(feature_rows)
 
     def predict_both(self, hands, allowed_gestures=None):
+        """Classify the paired hands and return the stable bilateral prediction.
+
+        Args:
+            hands: Mapping containing both ``LEFT`` and ``RIGHT`` landmark arrays.
+            allowed_gestures: Optional gesture-ID allowlist.
+
+        Returns:
+            A ``(gesture_id, confidence)`` pair, or ``None`` if not yet stable.
+        """
         return self.predict(
             hands,
             allowed_gestures=allowed_gestures,

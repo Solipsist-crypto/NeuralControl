@@ -14,12 +14,24 @@ CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
 MUTED = QColor("#64748b")
 
 def a(color, alpha):
+    """Return a QColor copied from ``color`` with a clamped alpha value.
+
+    Args:
+        color: QColor-compatible color value.
+        alpha: Desired opacity from 0 to 255.
+
+    Returns:
+        A new QColor with the requested opacity.
+    """
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
 class HudRoot(QWidget):
+    """Paint the rounded, gradient HUD background for the main window."""
+
     def __init__(self):
+        """Initialize the tiled background texture."""
         super().__init__()
         self.tile = QPixmap(28, 28)
         self.tile.fill(Qt.transparent)
@@ -31,6 +43,7 @@ class HudRoot(QWidget):
         q.end()
 
     def paintEvent(self, _):
+        """Render the gradient, glow, vignette, and border."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         r = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
@@ -59,7 +72,14 @@ class HudRoot(QWidget):
         p.drawPath(path)
 
 class TitleBar(QWidget):
+    """Provide the frameless window title, clock, and window controls."""
+
     def __init__(self, win):
+        """Build the title bar for a main window.
+
+        Args:
+            win: Main window whose minimize, maximize, and close actions are used.
+        """
         super().__init__(win)
         self.setFixedHeight(44)
         lay = QHBoxLayout(self)
@@ -98,13 +118,24 @@ class TitleBar(QWidget):
         w.showNormal() if w.isMaximized() else w.showMaximized()
 
     def mousePressEvent(self, e):
+        """Start native window dragging when the left mouse button is pressed.
+
+        Args:
+            e: Qt mouse event.
+        """
         if e.button() == Qt.LeftButton and self.window().windowHandle():
             self.window().windowHandle().startSystemMove()
 
     def mouseDoubleClickEvent(self, e):
+        """Toggle the parent window's maximized state on double-click.
+
+        Args:
+            e: Qt mouse event.
+        """
         self._max()
 
     def paintEvent(self, _):
+        """Paint the thin cyan-to-violet separator under the title bar."""
         p = QPainter(self)
         g = QLinearGradient(0, 0, self.width(), 0)
         g.setColorAt(0, a(CYAN, 0))
@@ -114,12 +145,15 @@ class TitleBar(QWidget):
         p.fillRect(QRectF(0, self.height() - 1, self.width(), 1), QBrush(g))
 
 class MainWindow(QMainWindow):
+    """Assemble application tabs and coordinate cross-tab refresh signals."""
+
     def __init__(self):
+        """Create the frameless HUD window and initialize all application tabs."""
         super().__init__()
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMinimumSize(1000, 650)
-        self.resize(1200, 750) # ЗМЕНШЕНО РОЗМІР
+        self.resize(1200, 750)
 
         root = HudRoot()
         self.setCentralWidget(root)
@@ -156,10 +190,20 @@ class MainWindow(QMainWindow):
             self.tab_analytics.refresh_data()
 
     def resizeEvent(self, e):
+        """Keep the resize grip anchored to the bottom-right corner.
+
+        Args:
+            e: Qt resize event.
+        """
         super().resizeEvent(e)
         self.grip.move(self.width() - 22, self.height() - 22)
 
     def closeEvent(self, e):
+        """Stop background control services before accepting window closure.
+
+        Args:
+            e: Qt close event.
+        """
         if hasattr(self, 'tab_control'):
             self.tab_control.stop()
         super().closeEvent(e)

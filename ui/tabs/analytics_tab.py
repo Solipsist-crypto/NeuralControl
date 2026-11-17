@@ -37,7 +37,14 @@ MUTED = "#64748b"
 
 
 class HudPanel(QFrame):
+    """Group analytics widgets in a themed panel with a heading."""
+
     def __init__(self, title):
+        """Create a panel with the specified heading.
+
+        Args:
+            title: Text displayed as the panel heading.
+        """
         super().__init__()
         self.setObjectName("AnalyticsPanel")
         self.setStyleSheet(
@@ -57,7 +64,14 @@ class HudPanel(QFrame):
 
 
 class AnalyticsTab(QWidget):
+    """Display dataset statistics, distributions, and export controls."""
+
     def __init__(self, training_service=None):
+        """Initialize analytics using a shared or newly created training service.
+
+        Args:
+            training_service: Optional service supplying samples and model metrics.
+        """
         super().__init__()
         self.setStyleSheet("background-color: #0a0e1a;")
         self.training_service = training_service or TrainingService()
@@ -182,6 +196,7 @@ class AnalyticsTab(QWidget):
             spine.set_color("#2a3350")
 
     def refresh_data(self):
+        """Refresh metric labels, plots, and the sample table from the dataset."""
         stats = self.training_service.get_stats()
         self.examples_value.setText(str(sum(stats.values())))
         self.classes_value.setText(str(len(stats)))

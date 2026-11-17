@@ -1,7 +1,4 @@
-"""
-Точка входу NeuralControl.
-Запуск: python main.py
-"""
+"""Application entry point; run with ``python main.py``."""
 
 import sys
 

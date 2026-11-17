@@ -50,7 +50,16 @@ HAND_LANDMARK_NAMES = (
 
 
 class TrainingService:
+    """Manage gesture examples, classifier training, evaluation, and persistence."""
+
     def __init__(self, data_path=None, model_path=None, registry_path=None):
+        """Load persisted training data and an optional trained classifier.
+
+        Args:
+            data_path: Optional path to the compressed training dataset.
+            model_path: Optional path to the serialized classifier.
+            registry_path: Optional path to the gesture registry JSON file.
+        """
         self.model_path = Path(model_path) if model_path else MODELS_DIR / "gesture_model.joblib"
         self.data_path = Path(data_path) if data_path else SAMPLES_DIR / "gesture_samples.npz"
         self.registry_path = (
@@ -65,7 +74,7 @@ class TrainingService:
         self.accuracy_ids = None
         self.classes = []
         
-        # Завантажуємо старі дані, якщо є
+        # Load the existing dataset when one has already been saved.
         self.X_data = np.array([])
         self.y_data = np.array([])
         self.ids_data = np.array([], dtype=float)
@@ -80,6 +89,7 @@ class TrainingService:
         self.load_model()
 
     def load_model(self):
+        """Load a compatible model and restore its valid evaluation metadata."""
         if not self.model_path.exists():
             return
 
@@ -124,6 +134,7 @@ class TrainingService:
                 self.model_stale = True
 
     def load_data(self):
+        """Load, validate, and migrate persisted samples and their labels."""
         if self.data_path.exists():
             with np.load(self.data_path, allow_pickle=True) as data:
                 self.X_data = np.asarray(data["X"], dtype=np.float32)
@@ -141,6 +152,7 @@ class TrainingService:
                 raise ValueError("Файл прикладів має містити двовимірний масив X.")
             if self.X_data.shape[1] in FEATURE_MIGRATIONS:
                 old_feature_count = self.X_data.shape[1]
+                # Legacy rows are reshaped, zero-padded, and stored in the current two-hand XYZ layout.
                 self.X_data = self._migrate_features(self.X_data)
                 self.save_data()
                 self.migration_notice = (
@@ -176,13 +188,32 @@ class TrainingService:
         return migrated.reshape(-1, TOTAL_FEATURES)
 
     def save_data(self):
+        """Persist feature rows, labels, and stable sample IDs to disk."""
         self.data_path.parent.mkdir(parents=True, exist_ok=True)
         np.savez(self.data_path, X=self.X_data, y=self.y_data, ids=self.ids_data)
 
     def add_sample(self, gesture_name: str, features: np.ndarray):
+        """Append one labeled feature vector to the training dataset.
+
+        Args:
+            gesture_name: Human-provided label, normalized to an uppercase ID.
+            features: Feature vector containing exactly ``TOTAL_FEATURES`` values.
+
+        Returns:
+            The normalized gesture identifier.
+        """
         return self.add_samples(gesture_name, np.asarray(features).reshape(1, -1))
 
     def add_samples(self, gesture_name: str, samples: np.ndarray):
+        """Append a batch of labeled vectors and register the gesture if needed.
+
+        Args:
+            gesture_name: Label shared by all rows in ``samples``.
+            samples: One vector or a matrix with ``TOTAL_FEATURES`` columns.
+
+        Returns:
+            The normalized gesture identifier.
+        """
         if self.data_error:
             raise ValueError(self.data_error)
         gesture_name = self.normalize_gesture_name(gesture_name)
@@ -223,12 +254,28 @@ class TrainingService:
 
     @staticmethod
     def normalize_gesture_name(gesture_name):
+        """Normalize a user-entered gesture label to an uppercase ID.
+
+        Args:
+            gesture_name: Name to trim and convert to underscore-separated form.
+
+        Returns:
+            The normalized identifier.
+
+        Raises:
+            ValueError: If the normalized name is empty.
+        """
         normalized = re.sub(r"\s+", "_", str(gesture_name).strip()).upper()
         if not normalized:
             raise ValueError("Назва жесту не може бути порожньою.")
         return normalized
 
     def ensure_registry_entries(self, poses):
+        """Add missing gesture IDs to the registry without overwriting existing entries.
+
+        Args:
+            poses: Iterable of gesture labels to ensure are registered.
+        """
         try:
             registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
         except FileNotFoundError:
@@ -272,6 +319,14 @@ class TrainingService:
             ) from error
 
     def delete_sample(self, index: int):
+        """Delete a sample row and invalidate cached evaluation metadata.
+
+        Args:
+            index: Zero-based row index in the dataset.
+
+        Raises:
+            IndexError: If the index is outside the dataset.
+        """
         if index < 0 or index >= len(self.y_data):
             raise IndexError("Індекс прикладу поза межами набору даних.")
 
@@ -285,6 +340,11 @@ class TrainingService:
         self.save_data()
 
     def train_model(self):
+        """Train, evaluate, and persist the MLP classifier.
+
+        Returns:
+            ``(success, message)`` describing the outcome of model training.
+        """
         if self.data_error:
             return False, self.data_error
         if len(self.X_data) < 10:
@@ -294,7 +354,7 @@ class TrainingService:
         if self.X_data.ndim != 2 or self.X_data.shape[1] != TOTAL_FEATURES:
             return False, f"Дані мають містити {TOTAL_FEATURES} ознак на приклад."
             
-        # Створюємо пайплайн: нормалізація + нейромережа (MLP)
+        # Scale coordinates before fitting the MLP so features with larger ranges do not dominate.
         self.model = make_pipeline(
             StandardScaler(),
             MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=500, random_state=42)
@@ -314,7 +374,7 @@ class TrainingService:
         self.model_error = None
         self.model_stale = False
         
-        # Зберігаємо модель на диск
+        # Persist the trained model and its evaluation metadata.
         self.model_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({
             "model": self.model,
@@ -326,19 +386,33 @@ class TrainingService:
         return True, "Модель успішно навчена!"
 
     def get_stats(self):
-        """Повертає словник {жест: кількість прикладів}"""
+        """Return the number of stored samples for each gesture identifier.
+
+        Returns:
+            Mapping from gesture ID to sample count.
+        """
         stats = {}
         for cls in np.unique(self.y_data):
             stats[cls] = int(np.sum(self.y_data == cls))
         return stats
 
     def get_raw_data(self) -> tuple[np.ndarray, np.ndarray]:
+        """Return copies of the feature matrix and corresponding labels."""
         return self.X_data.copy(), self.y_data.copy()
 
     def get_sample_ids(self) -> np.ndarray:
+        """Return a copy of the stable sample identifiers."""
         return self.ids_data.copy()
 
     def get_feature_importance(self) -> np.ndarray:
+        """Fit a random forest and return feature importance scores.
+
+        Returns:
+            A copy of the score for each input feature.
+
+        Raises:
+            ValueError: If the dataset is too small to compute importances.
+        """
         X, y = self.get_raw_data()
         if X.ndim != 2 or X.shape[0] < 2 or X.shape[1] == 0:
             raise ValueError("Недостатньо даних для обчислення важливості ознак.")
@@ -348,6 +422,14 @@ class TrainingService:
         return model.feature_importances_.copy()
 
     def get_feature_names(self, feature_count: int | None = None) -> list[str]:
+        """Describe feature columns for reports and visualizations.
+
+        Args:
+            feature_count: Number of input columns; defaults to the current dataset.
+
+        Returns:
+            Human-readable labels in column order.
+        """
         if feature_count is None:
             feature_count = self.X_data.shape[1] if self.X_data.ndim == 2 else 0
         if feature_count == TOTAL_FEATURES:
@@ -370,6 +452,11 @@ class TrainingService:
         ]
 
     def get_confusion_matrix(self):
+        """Evaluate the current model against stored samples.
+
+        Returns:
+            A ``(matrix, class_labels)`` pair, or an empty result if unavailable.
+        """
         if self.model is None or self.X_data.ndim != 2 or not len(self.y_data):
             return None, []
 
@@ -379,9 +466,11 @@ class TrainingService:
         return matrix, [str(label) for label in classes]
 
     def get_accuracy(self):
+        """Return the most recently computed held-out accuracy, if available."""
         return self.accuracy
 
     def clear_data(self):
+        """Remove saved examples and the trained model, then reset service state."""
         self.X_data = np.array([])
         self.y_data = np.array([])
         self.ids_data = np.array([], dtype=float)

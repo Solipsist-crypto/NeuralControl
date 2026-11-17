@@ -1,1 +1,1 @@
-"""Сервіси NeuralControl: контролери, диспетчер дій, камера, потоки."""
+"""Application services for camera capture, recognition, rules, and actions."""

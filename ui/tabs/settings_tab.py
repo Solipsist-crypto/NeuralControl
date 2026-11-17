@@ -34,7 +34,16 @@ from services.rule_engine import RuleStore, RuleValidationError
 
 
 class RuleDialog(QDialog):
+    """Create or edit a rule with gesture triggers and ordered action steps."""
+
     def __init__(self, poses, rule=None, parent=None):
+        """Initialize the rule editor.
+
+        Args:
+            poses: Available gesture IDs for trigger selection.
+            rule: Optional existing rule whose values should be edited.
+            parent: Optional owner widget.
+        """
         super().__init__(parent)
         self.setWindowTitle("Конструктор правила")
         self.setMinimumWidth(560)
@@ -343,6 +352,11 @@ class RuleDialog(QDialog):
         self.accept()
 
     def get_rule(self):
+        """Collect the current dialog fields as a rule mapping.
+
+        Returns:
+            Rule data containing triggers, hold duration, and ordered actions.
+        """
         combination = self.combination_check.isChecked()
         count = 2 if combination else 1
         triggers = []
@@ -370,9 +384,17 @@ class RuleDialog(QDialog):
 
 
 class SettingsTab(QWidget):
+    """Display saved action rules and provide add, edit, and delete workflows."""
+
     rules_changed = Signal()
 
     def __init__(self, training_service, rules_path=None):
+        """Initialize rule storage and build the rule-card view.
+
+        Args:
+            training_service: Service used to list recorded gesture IDs.
+            rules_path: Optional path to the rules JSON file.
+        """
         super().__init__()
         self.training_service = training_service
         self.store = RuleStore(rules_path)
@@ -422,6 +444,7 @@ class SettingsTab(QWidget):
         return tuple(sorted(stats, key=str.casefold))
 
     def refresh_rules(self):
+        """Reload stored rules and rebuild their cards in the grid."""
         try:
             self.store.load()
         except RuleValidationError as error:
@@ -499,6 +522,7 @@ class SettingsTab(QWidget):
         return card
 
     def add_rule(self):
+        """Open the rule editor and persist a newly created rule."""
         dialog = RuleDialog(self._available_poses(), parent=self)
         if dialog.exec() != QDialog.Accepted:
             return
@@ -511,6 +535,11 @@ class SettingsTab(QWidget):
         self.rules_changed.emit()
 
     def edit_rule(self, rule_id):
+        """Edit an existing rule and persist the accepted changes.
+
+        Args:
+            rule_id: Identifier of the rule to edit.
+        """
         rule = next((item for item in self.store.rules if item["id"] == rule_id), None)
         if rule is None:
             QMessageBox.warning(self, "Правило не знайдено", rule_id)
@@ -527,6 +556,11 @@ class SettingsTab(QWidget):
         self.rules_changed.emit()
 
     def delete_rule(self, rule_id):
+        """Ask for confirmation, then delete a rule by identifier.
+
+        Args:
+            rule_id: Identifier of the rule to delete.
+        """
         answer = QMessageBox.question(
             self,
             "Видалити правило",

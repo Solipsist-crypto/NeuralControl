@@ -1,0 +1,1 @@
+"""Core data types, hand tracking, feature extraction, and signal processing."""

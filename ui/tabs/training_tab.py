@@ -11,15 +11,18 @@ from ui.widgets.video_view import VideoView
 from services.training_service import TrainingService
 
 class TrainingTab(QWidget):
-    # Сигнали для зв'язку з головним вікном (щоб брати кадри з камери)
+    """Record labeled hand-feature samples and train the gesture classifier."""
+
+    # Signals shared with the main window and other tabs.
     request_current_features = Signal()
     model_trained = Signal()
     gesture_recorded = Signal()
     
     def __init__(self):
+        """Initialize the training service, preview, recording controls, and dataset."""
         super().__init__()
         self.training_service = TrainingService()
-        self.current_features = None  # Сюди будемо отримувати координати з камери
+        self.current_features = None  # Latest feature vector received from the camera.
         self._capture_samples = []
         self._capture_name = ""
         self._capture_deadline = 0.0
@@ -33,11 +36,12 @@ class TrainingTab(QWidget):
         self._update_model_status()
 
     def build_ui(self):
+        """Create the live hand preview, sample controls, and dataset table."""
         layout = QHBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        # ЛІВА ПАНЕЛЬ: Додавання жестів
+        # Left panel: live preview and gesture recording controls.
         left_panel = QFrame()
         left_panel.setObjectName("SidePanel")
         left_layout = QVBoxLayout(left_panel)
@@ -79,7 +83,7 @@ class TrainingTab(QWidget):
 
         left_layout.addStretch()
         
-        # Права панель: Таблиця та навчання
+        # Right panel: dataset summary and model training controls.
         right_panel = QVBoxLayout()
         
         title2 = QLabel("БАЗА ЗНАНЬ (ДАТАСЕТ)")
@@ -110,10 +114,22 @@ class TrainingTab(QWidget):
         layout.addLayout(right_panel, 2)
 
     def set_current_features(self, features):
-        """Викликається з головного вікна, коли є новий кадр"""
+        """Store the latest feature vector received from the control tab.
+
+        Args:
+            features: Flattened feature vector for the current camera frame.
+        """
         self.current_features = np.asarray(features, dtype=np.float32).reshape(-1)
 
     def update_preview(self, frame, tracked_hands=None, predictions=None, fps=0.0):
+        """Update the training preview with the latest camera result.
+
+        Args:
+            frame: Camera image in BGR format.
+            tracked_hands: Optional mapping of hand IDs to landmark arrays.
+            predictions: Optional mapping of hand IDs to recognized gestures.
+            fps: Current camera-processing frame rate.
+        """
         self.preview_view.set_frame(
             frame,
             tracked_hands or {},
@@ -126,6 +142,7 @@ class TrainingTab(QWidget):
         self.preview_view.update()
 
     def capture_sample(self):
+        """Save the current feature vector under the entered gesture label."""
         name = self.input_gesture.text().strip()
         if not name:
             QMessageBox.warning(self, "Помилка", "Введіть назву жесту!")
@@ -153,6 +170,7 @@ class TrainingTab(QWidget):
         )
 
     def capture_5s(self):
+        """Start collecting feature vectors for a five-second recording window."""
         name = self.input_gesture.text().strip()
         if not name:
             QMessageBox.warning(self, "Помилка", "Введіть назву жесту!")
@@ -218,6 +236,7 @@ class TrainingTab(QWidget):
             control.setEnabled(not active)
 
     def train_model(self):
+        """Train the classifier and notify connected tabs when it succeeds."""
         try:
             success, msg = self.training_service.train_model()
         except (OSError, ValueError) as error:
@@ -231,6 +250,7 @@ class TrainingTab(QWidget):
             QMessageBox.warning(self, "Помилка", msg)
 
     def clear_data(self):
+        """Ask for confirmation, then remove all training examples and the model."""
         reply = QMessageBox.question(self, "Очистити", "Ви впевнені, що хочете видалити всі дані?", 
                                      QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
@@ -241,6 +261,7 @@ class TrainingTab(QWidget):
             self.model_trained.emit()
 
     def update_table(self):
+        """Refresh the gesture/sample-count table from the training dataset."""
         stats = self.training_service.get_stats()
         self.table.setRowCount(len(stats))
         for row, (gesture, count) in enumerate(stats.items()):

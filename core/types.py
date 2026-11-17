@@ -1,25 +1,24 @@
-"""
-Типи даних (dataclass'и) для всієї системи NeuralControl.
-
-Правило: жоден модуль не передає "сирі" dict'и між шарами.
-Тільки ці типи.
-"""
+"""Shared data types, constants, and runtime paths for NeuralControl."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+import sys
 from typing import Literal
 
 import numpy as np
 
 
 # =========================================================
-# ШЛЯХИ
+# PATHS
 # =========================================================
 
-ROOT = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    ROOT = Path(sys.executable).resolve().parent
+else:
+    ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 MODELS_DIR = DATA_DIR / "models"
 SAMPLES_DIR = DATA_DIR / "samples"
@@ -31,14 +30,20 @@ GESTURE_REGISTRY_JSON = DATA_DIR / "gesture_registry.json"
 RADIAL_MENU_JSON = DATA_DIR / "radial_menu.json"
 SETTINGS_JSON = DATA_DIR / "settings.json"
 HAND_MODEL_PATH = ASSETS_DIR / "hand_landmarker.task"
+if getattr(sys, "frozen", False) and not HAND_MODEL_PATH.is_file():
+    bundled_root = getattr(sys, "_MEIPASS", None)
+    if bundled_root is not None:
+        bundled_model = Path(bundled_root) / "assets" / "hand_landmarker.task"
+        if bundled_model.is_file():
+            HAND_MODEL_PATH = bundled_model
 
-# Автоматично створюємо папки
+# Create data folders when the application starts.
 for _d in (MODELS_DIR, SAMPLES_DIR, ARCHIVES_DIR, DRAWINGS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 
 # =========================================================
-# КОНСТАНТИ
+# CONSTANTS
 # =========================================================
 
 FEATURES_PER_HAND = 21 * 3
@@ -104,19 +109,19 @@ GESTURE_TRANSLATIONS = {
     "DRAW_X": "ХРЕСТИК У ПОВІТРІ",
 }
 
-# Тривалості утримання
-HOLD_TOGGLE_MODE = 3.0      # перемикання режиму
-HOLD_RADIAL_MENU = 0.5      # кругове меню
-HOLD_CLICK = 0.2            # клік
-HOLD_ACTION = 1.0           # звичайна дія
+# Hold durations in seconds.
+HOLD_TOGGLE_MODE = 3.0      # Mode toggle
+HOLD_RADIAL_MENU = 0.5      # Radial menu
+HOLD_CLICK = 0.2            # Click
+HOLD_ACTION = 1.0           # Standard action
 
 
 # =========================================================
-# РЕЖИМИ
+# MODES
 # =========================================================
 
 class AppMode(Enum):
-    """Поточний режим роботи."""
+    """Available application operating modes."""
     IDLE = "idle"
     GESTURES = "gestures"
     MOUSE = "mouse"
@@ -124,6 +129,8 @@ class AppMode(Enum):
 
 
 class HandSide(Enum):
+    """Recognized hand-side labels used throughout the application."""
+
     LEFT = "left"
     RIGHT = "right"
     BOTH = "both"
@@ -131,12 +138,12 @@ class HandSide(Enum):
 
 
 # =========================================================
-# РУКА ТА КАДР
+# HAND AND FRAME
 # =========================================================
 
 @dataclass
 class HandLandmarks:
-    """Одна розпізнана рука: 21 точка."""
+    """One detected hand represented by 21 normalized landmarks."""
     side: HandSide
     points: np.ndarray          # (21, 3), float32
     confidence: float = 1.0
@@ -144,15 +151,24 @@ class HandLandmarks:
 
 @dataclass
 class FrameResult:
-    """Результат обробки одного кадру."""
+    """Detected hands and timestamp for one processed frame."""
     hands: list[HandLandmarks] = field(default_factory=list)
     timestamp: float = 0.0
 
     @property
     def has_hands(self) -> bool:
+        """Return whether this frame contains at least one detected hand."""
         return len(self.hands) > 0
 
     def get_hand(self, side: HandSide) -> HandLandmarks | None:
+        """Find the detected hand with the requested side.
+
+        Args:
+            side: Hand side to search for.
+
+        Returns:
+            The matching hand, or ``None`` when it is absent.
+        """
         for h in self.hands:
             if h.side == side:
                 return h
@@ -160,23 +176,31 @@ class FrameResult:
 
 
 # =========================================================
-# РОЗПІЗНАВАННЯ
+# RECOGNITION
 # =========================================================
 
 @dataclass
 class Prediction:
-    """Результат розпізнавання жесту."""
+    """Class label, confidence, and timestamp produced by gesture inference."""
     gesture_id: str
     gesture_name: str
     confidence: float
     timestamp: float = 0.0
 
     def is_confident(self, threshold: float = DEFAULT_CONFIDENCE_THRESHOLD) -> bool:
+        """Return whether the confidence meets the supplied threshold.
+
+        Args:
+            threshold: Minimum accepted confidence in the range from 0 to 1.
+
+        Returns:
+            ``True`` when this prediction meets or exceeds the threshold.
+        """
         return self.confidence >= threshold
 
 
 # =========================================================
-# ОПИС ЖЕСТУ
+# GESTURE DEFINITION
 # =========================================================
 
 ActionType = Literal["media", "key", "system", "mouse", "custom"]
@@ -185,14 +209,14 @@ GestureType = Literal["static", "dynamic"]
 
 @dataclass
 class GestureAction:
-    """Що робити при активації жесту."""
+    """Action type and parameters associated with a gesture."""
     type: ActionType
     payload: dict
 
 
 @dataclass
 class GestureDefinition:
-    """Повний опис жесту з gesture_registry.json."""
+    """Normalized gesture metadata loaded from the gesture registry."""
     id: str
     name: str
     emoji: str
@@ -205,12 +229,12 @@ class GestureDefinition:
 
 
 # =========================================================
-# НАВЧАННЯ
+# TRAINING
 # =========================================================
 
 @dataclass
 class TrainingSample:
-    """Один приклад для навчання."""
+    """One labeled training example containing the flattened hand features."""
     gesture_id: str
     features: np.ndarray        # (126,), float32
     timestamp: float = 0.0
@@ -218,7 +242,7 @@ class TrainingSample:
 
 @dataclass
 class ModelMetrics:
-    """Метрики моделі — для порівняння MLP/SVC/RF."""
+    """Training and evaluation metrics for a gesture-classification model."""
     model_name: str
     accuracy: float
     train_time_sec: float
@@ -227,12 +251,12 @@ class ModelMetrics:
 
 
 # =========================================================
-# КРУГОВЕ МЕНЮ
+# RADIAL MENU
 # =========================================================
 
 @dataclass
 class RadialSector:
-    """Один сектор кругового меню."""
+    """Label, action, and enabled state for one radial-menu sector."""
     index: int
     icon: str = "empty"
     label: str = ""
@@ -241,12 +265,12 @@ class RadialSector:
 
 
 # =========================================================
-# НАЛАШТУВАННЯ
+# SETTINGS
 # =========================================================
 
 @dataclass
 class AppSettings:
-    """Налаштування програми (з settings.json)."""
+    """Application preferences persisted in ``settings.json``."""
     version: int = 1
     mode: str = "gestures"
     overlay_enabled: bool = True

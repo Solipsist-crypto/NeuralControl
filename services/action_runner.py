@@ -11,15 +11,27 @@ from services.action_catalog import CONFIRM_EACH_TIME, WAIT_ACTION
 
 
 class ActionExecutionError(RuntimeError):
+    """Raised when an action cannot be executed or is unsupported."""
+
     pass
 
 
 class ActionCancelledError(RuntimeError):
+    """Raised when the user declines a confirmation for a requested action."""
+
     pass
 
 
 class ActionRunner:
+    """Execute configured desktop actions and surface errors to the caller."""
+
     def __init__(self, parent=None, reload_callback=None):
+        """Prepare action execution with an optional UI parent and reload hook.
+
+        Args:
+            parent: Qt widget used as the owner of confirmation dialogs.
+            reload_callback: Optional callback for the configuration-reload action.
+        """
         self.parent = parent
         self.reload_callback = reload_callback
         self._pressed_mouse_button = False
@@ -27,9 +39,26 @@ class ActionRunner:
 
     @staticmethod
     def requires_confirmation(action):
+        """Return whether an action requires explicit user confirmation.
+
+        Args:
+            action: Display name of the action.
+
+        Returns:
+            ``True`` when the action is marked as confirmation-sensitive.
+        """
         return action in CONFIRM_EACH_TIME
 
     def confirm(self, action, params):
+        """Show a confirmation dialog for an action and its parameters.
+
+        Args:
+            action: Display name of the action.
+            params: Action parameter mapping shown to the user.
+
+        Returns:
+            ``True`` if the user approves the action.
+        """
         details = f"\n\nПараметри: {params}" if params else ""
         answer = QMessageBox.question(
             self.parent,
@@ -41,6 +70,19 @@ class ActionRunner:
         return answer == QMessageBox.Yes
 
     def execute(self, action, params=None):
+        """Validate confirmation and execute an action from the action catalog.
+
+        Args:
+            action: Display name of the action to execute.
+            params: Optional mapping of action-specific parameters.
+
+        Returns:
+            Action-specific result, such as a saved file path, or ``None``.
+
+        Raises:
+            ActionCancelledError: If a requested confirmation is declined.
+            ActionExecutionError: If dependencies are missing or execution fails.
+        """
         params = params or {}
         if action in ("Немає", WAIT_ACTION):
             return
@@ -59,7 +101,7 @@ class ActionRunner:
         if pyautogui is not None:
             handled_errors += (pyautogui.FailSafeException,)
         try:
-            self._execute(action, params)
+            return self._execute(action, params)
         except handled_errors as error:
             raise ActionExecutionError(f"Дія «{action}» не виконана: {error}") from error
 
@@ -173,8 +215,7 @@ class ActionRunner:
             "Зберегти скріншот у файл",
             "Скопіювати скріншот у буфер",
         }:
-            self._screenshot_action(action, params)
-            return
+            return self._screenshot_action(action, params)
         if action in {
             "Перевести ПК у режим сну",
             "Перевести ПК у режим гібернації",
@@ -417,6 +458,13 @@ class ActionRunner:
 
     def _screenshot_action(self, action, params):
         pyautogui = self._get_pyautogui()
+        try:
+            import pyscreeze
+        except ImportError as error:
+            raise ActionExecutionError(
+                f"Компонент захоплення екрана недоступний: {error}"
+            ) from error
+
         region = None
         if action == "Скріншот активного вікна":
             self._require_windows()
@@ -438,7 +486,16 @@ class ActionRunner:
             region = tuple(
                 int(params[key]) for key in ("x", "y", "width", "height")
             )
-        image = pyautogui.screenshot(region=region)
+        try:
+            image = pyautogui.screenshot(region=region)
+        except (ImportError, OSError, ValueError, TypeError, pyscreeze.PyScreezeException) as error:
+            raise ActionExecutionError(
+                f"Не вдалося зробити скріншот: {error}"
+            ) from error
+        if image is None or not hasattr(image, "save"):
+            raise ActionExecutionError(
+                "Служба захоплення екрана не повернула зображення."
+            )
         if action == "Скопіювати скріншот у буфер":
             rgb_image = image.convert("RGB")
             width, height = rgb_image.size
@@ -457,8 +514,16 @@ class ActionRunner:
             path = self._screenshot_path()
         else:
             path = Path(self._required(params, "path")).expanduser()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(str(path))
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            image.save(str(path))
+            if not path.is_file() or path.stat().st_size == 0:
+                raise OSError("Файл не створено або він порожній.")
+        except (OSError, ValueError) as error:
+            raise ActionExecutionError(
+                f"Не вдалося зберегти скріншот у {path}: {error}"
+            ) from error
+        return path
 
     def _power_action(self, action, params):
         self._require_windows()
@@ -597,6 +662,7 @@ class ActionRunner:
         )
 
     def release_mouse_button(self):
+        """Release the left mouse button if a previous action held it down."""
         if not self._pressed_mouse_button:
             return
         pyautogui = self._get_pyautogui()

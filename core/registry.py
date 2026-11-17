@@ -26,11 +26,19 @@ DYNAMIC_POSES = frozenset(
 )
 
 class GestureRegistry:
+    """Load enabled gesture definitions from the application registry file."""
+
     def __init__(self):
+        """Load enabled gesture definitions from the configured JSON registry."""
         self.gestures: dict[str, GestureDefinition] = {}
         self.reload()
 
     def reload(self):
+        """Reload and validate enabled gesture entries from disk.
+
+        Returns:
+            ``None``. Invalid or inaccessible registry data is reported to stdout.
+        """
         self.gestures.clear()
         try:
             entries = json.loads(
@@ -73,4 +81,12 @@ class GestureRegistry:
             print(f"Помилка завантаження реєстру жестів: {error}")
 
     def get(self, gesture_id: str) -> GestureDefinition | None:
+        """Look up a gesture by identifier.
+
+        Args:
+            gesture_id: Registry pose identifier.
+
+        Returns:
+            The matching definition, or ``None`` if it is not loaded.
+        """
         return self.gestures.get(gesture_id)

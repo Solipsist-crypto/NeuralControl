@@ -42,6 +42,8 @@ HAND_CONNECTIONS = (
 
 @dataclass
 class Particle:
+    """Position, velocity, color, size, and lifetime of a drawing effect particle."""
+
     x: float
     y: float
     vx: float
@@ -53,7 +55,10 @@ class Particle:
 
 
 class DrawingCanvas(QWidget):
+    """Render a drawing surface with optional camera and hand-driven input."""
+
     def __init__(self):
+        """Initialize canvas state, smoothing filters, and animation timer."""
         super().__init__()
         self.setMinimumSize(480, 360)
         self.setAttribute(Qt.WA_OpaquePaintEvent)
@@ -83,9 +88,19 @@ class DrawingCanvas(QWidget):
         self._timer.timeout.connect(self._tick)
 
     def set_color(self, color):
+        """Set the color used for subsequent strokes and particles.
+
+        Args:
+            color: QColor-compatible stroke color.
+        """
         self.color = QColor(color)
 
     def set_background_mode(self, mode):
+        """Select the camera, hologram, or plain background.
+
+        Args:
+            mode: Display mode label.
+        """
         if self.background_mode != mode:
             self._last_finger_point = None
             self._reset_finger_filters()
@@ -93,6 +108,11 @@ class DrawingCanvas(QWidget):
         self.update()
 
     def set_hand_drawing_enabled(self, enabled):
+        """Enable or disable drawing with the tracked index-finger tip.
+
+        Args:
+            enabled: Whether hand-driven drawing should be active.
+        """
         self.hand_drawing_enabled = bool(enabled)
         self._finger_point = None
         self._last_finger_point = None
@@ -100,6 +120,12 @@ class DrawingCanvas(QWidget):
         self.update()
 
     def set_frame(self, frame, tracked_hands):
+        """Update the camera image and landmark data used by the canvas.
+
+        Args:
+            frame: Optional OpenCV BGR frame.
+            tracked_hands: Mapping of hand IDs to normalized landmarks.
+        """
         if frame is None:
             self._frame = None
         else:
@@ -122,6 +148,7 @@ class DrawingCanvas(QWidget):
             target = self._frame_rect() if self.background_mode == "Камера" else QRectF(self.rect())
             x, y = self._hands[0][8]
             now = time.monotonic()
+            # Convert normalized landmark coordinates into canvas-space pixels.
             finger = QPointF(
                 self._finger_x_filter.filter(target.left() + x * target.width(), now),
                 self._finger_y_filter.filter(target.top() + y * target.height(), now),
@@ -140,15 +167,25 @@ class DrawingCanvas(QWidget):
         self.update()
 
     def clear(self):
+        """Clear stored strokes and particles from the drawing surface."""
         self._strokes.fill(Qt.transparent)
         self._particles.clear()
         self._last_finger_point = None
         self.update()
 
     def save(self, path):
+        """Save the current canvas as a PNG image.
+
+        Args:
+            path: Destination filesystem path.
+
+        Returns:
+            ``True`` if Qt successfully saved the image.
+        """
         return self.grab().save(str(path), "PNG")
 
     def paintEvent(self, _):
+        """Render the background, strokes, particles, and current cursor."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
@@ -168,6 +205,11 @@ class DrawingCanvas(QWidget):
         painter.end()
 
     def mousePressEvent(self, event):
+        """Begin a mouse-driven stroke when the left button is pressed.
+
+        Args:
+            event: Qt mouse event.
+        """
         if event.button() == Qt.LeftButton:
             self._mouse_down = True
             self._mouse_last_point = event.position()
@@ -179,6 +221,11 @@ class DrawingCanvas(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        """Extend the active mouse-driven stroke as the pointer moves.
+
+        Args:
+            event: Qt mouse event.
+        """
         if self._mouse_down and self._mouse_last_point is not None:
             current = event.position()
             self._draw_glowing_line(self._mouse_last_point, current)
@@ -190,6 +237,11 @@ class DrawingCanvas(QWidget):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        """Finish a mouse-driven stroke when the left button is released.
+
+        Args:
+            event: Qt mouse event.
+        """
         if event.button() == Qt.LeftButton:
             self._mouse_down = False
             self._mouse_last_point = None
@@ -198,6 +250,11 @@ class DrawingCanvas(QWidget):
         super().mouseReleaseEvent(event)
 
     def resizeEvent(self, event):
+        """Resize the stroke layer while preserving existing drawing content.
+
+        Args:
+            event: Qt resize event.
+        """
         new_strokes = QImage(event.size(), QImage.Format_ARGB32_Premultiplied)
         new_strokes.fill(Qt.transparent)
         painter = QPainter(new_strokes)
@@ -209,11 +266,21 @@ class DrawingCanvas(QWidget):
         super().resizeEvent(event)
 
     def showEvent(self, event):
+        """Start the animation timer when the drawing tab becomes visible.
+
+        Args:
+            event: Qt show event.
+        """
         self._last_tick = time.monotonic()
         self._timer.start(16)
         super().showEvent(event)
 
     def hideEvent(self, event):
+        """Stop animation and clear transient hand/particle state when hidden.
+
+        Args:
+            event: Qt hide event.
+        """
         self._timer.stop()
         self._particles.clear()
         self._finger_point = None
@@ -375,7 +442,10 @@ class DrawingCanvas(QWidget):
 
 
 class DrawingTab(QWidget):
+    """Provide drawing controls and a hand-aware drawing canvas."""
+
     def __init__(self):
+        """Create the drawing tab and its canvas controls."""
         super().__init__()
         self.setObjectName("DrawingTab")
         self.setStyleSheet(
@@ -477,6 +547,12 @@ class DrawingTab(QWidget):
         layout.addWidget(self.canvas, 1)
 
     def set_frame(self, frame, tracked_hands):
+        """Forward the latest camera frame and hand landmarks to the canvas.
+
+        Args:
+            frame: OpenCV BGR image.
+            tracked_hands: Mapping of hand IDs to normalized landmarks.
+        """
         self.canvas.set_frame(frame, tracked_hands)
 
     def _set_brush_size(self, size):

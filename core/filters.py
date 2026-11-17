@@ -2,7 +2,16 @@ import math
 import time
 
 class OneEuroFilter:
+    """Smooth noisy scalar or array-valued measurements with an adaptive filter."""
+
     def __init__(self, mincutoff=1.0, beta=0.05, dcutoff=1.0):
+        """Initialize filter parameters and clear the previous sample state.
+
+        Args:
+            mincutoff: Minimum cutoff frequency for position smoothing.
+            beta: Speed-dependent cutoff gain.
+            dcutoff: Cutoff frequency used to smooth the derivative.
+        """
         self.mincutoff = mincutoff
         self.beta = beta
         self.dcutoff = dcutoff
@@ -15,6 +24,15 @@ class OneEuroFilter:
         return 1.0 / (1.0 + tau / dt)
 
     def filter(self, x, t=None):
+        """Filter a sample using its timestamp.
+
+        Args:
+            x: Current scalar or NumPy-array sample.
+            t: Optional timestamp in seconds; defaults to wall-clock time.
+
+        Returns:
+            The smoothed sample, with the same shape as ``x``.
+        """
         if t is None:
             t = time.time()
         if self.t_prev is None:

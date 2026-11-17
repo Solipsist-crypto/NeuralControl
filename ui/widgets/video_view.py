@@ -8,16 +8,36 @@ from PySide6.QtGui import (QPainter, QPainterPath, QColor, QPen, QBrush,
 from PySide6.QtWidgets import QWidget, QSizePolicy
 from core.types import GESTURE_TRANSLATIONS
 
-CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6") # Трохи м'якші
+CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
 GREEN, PINK = QColor("#4ade80"), QColor("#f472b6")
 TEXT, MUTED = QColor("#e2e8f0"), QColor("#64748b")
 
 def a(color, alpha):
+    """Return a QColor with an opacity value clamped between 0 and 255.
+
+    Args:
+        color: QColor-compatible color value.
+        alpha: Desired opacity.
+
+    Returns:
+        A new QColor instance with the requested opacity.
+    """
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
 def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
+    """Create a font using the HUD's preferred display or monospace families.
+
+    Args:
+        size: Font pixel size.
+        weight: Qt font weight.
+        spacing: Optional absolute character spacing.
+        mono: Whether to prefer a monospaced family.
+
+    Returns:
+        The configured QFont.
+    """
     f = QFont()
     f.setFamilies(["JetBrains Mono", "Consolas"] if mono else ["Orbitron", "Rajdhani", "Segoe UI"])
     f.setPixelSize(size)
@@ -30,6 +50,12 @@ CONN = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 5), (5, 6), (6, 7), (7, 8), (5, 9), 
         (9, 13), (13, 14), (14, 15), (15, 16), (13, 17), (17, 18), (18, 19), (19, 20), (0, 17)]
 
 def draw_hand(p, px):
+    """Paint a neon hand skeleton from mapped pixel landmark positions.
+
+    Args:
+        p: Active QPainter.
+        px: Sequence of 21 landmark positions in widget coordinates.
+    """
     p.setBrush(Qt.NoBrush)
     p.setCompositionMode(QPainter.CompositionMode_Plus)
     for w, al in ((16, 16), (9, 42)):
@@ -47,6 +73,15 @@ def draw_hand(p, px):
         p.drawEllipse(pt, 3 if tip else 2, 3 if tip else 2)
 
 def draw_reticle(p, c, rad, ph, hold_progress=0.0):
+    """Draw the animated targeting reticle and optional hold-progress arc.
+
+    Args:
+        p: Active QPainter.
+        c: Reticle center in widget coordinates.
+        rad: Outer reticle radius in pixels.
+        ph: Animation phase in seconds.
+        hold_progress: Hold completion fraction between 0 and 1.
+    """
     p.setBrush(Qt.NoBrush)
     r1 = QRectF(c.x() - rad, c.y() - rad, 2 * rad, 2 * rad)
     p.setPen(QPen(a(CYAN, 210), 2))
@@ -66,9 +101,12 @@ def draw_reticle(p, c, rad, ph, hold_progress=0.0):
         p.drawArc(hold_ring, 90 * 16, -int(360 * hold_progress * 16))
 
 class VideoView(QWidget):
+    """Display camera video, recognized landmarks, labels, and HUD overlays."""
+
     BG = QColor("#070a14")
 
     def __init__(self):
+        """Initialize display state, trail storage, and scanline texture."""
         super().__init__()
         self.setMinimumSize(480, 360)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -88,6 +126,15 @@ class VideoView(QWidget):
         q.end()
 
     def set_frame(self, bgr, tracked_hands, fps, predictions=None, hold_progress=0.0):
+        """Replace the displayed frame and update per-hand prediction overlays.
+
+        Args:
+            bgr: Camera frame in BGR channel order.
+            tracked_hands: Mapping of hand IDs to 21-point landmark arrays.
+            fps: Current processing frame rate.
+            predictions: Optional mapping of hand IDs to label/confidence pairs.
+            hold_progress: Current action-hold progress from 0 to 1.
+        """
         h, w = bgr.shape[:2]
         self._frame = bgr
         self._qimg = QImage(bgr.data, w, h, 3 * w, QImage.Format_BGR888).copy()
@@ -126,10 +173,20 @@ class VideoView(QWidget):
         self.update()
 
     def advance(self, dt):
+        """Advance animation phase and request a repaint.
+
+        Args:
+            dt: Elapsed time in seconds.
+        """
         self.phase += dt
         self.update()
 
     def video_rect(self):
+        """Return the centered video rectangle preserving the source aspect ratio.
+
+        Returns:
+            The video drawing area in widget coordinates.
+        """
         W, H = self.width(), self.height()
         w = min(W, H * self._aspect)
         h = w / self._aspect
@@ -137,9 +194,20 @@ class VideoView(QWidget):
 
     @staticmethod
     def to_px(x, y, r):
+        """Map normalized image coordinates into a display rectangle.
+
+        Args:
+            x: Horizontal normalized coordinate.
+            y: Vertical normalized coordinate.
+            r: Target rectangle in widget coordinates.
+
+        Returns:
+            The corresponding QPointF in widget coordinates.
+        """
         return QPointF(r.x() + x * r.width(), r.y() + y * r.height())
 
     def paintEvent(self, _):
+        """Paint video or hologram background, hand overlays, and frame HUD."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)

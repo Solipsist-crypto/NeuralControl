@@ -1,1 +1,1 @@
-"""Інтерфейс користувача NeuralControl (PySide6)."""
+"""PySide6 application windows, tabs, dialogs, and reusable widgets."""

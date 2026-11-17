@@ -9,11 +9,31 @@ GREEN, PINK = QColor("#00ff88"), QColor("#ff2e97")
 TEXT, MUTED = QColor("#e6f1ff"), QColor("#6b7a99")
 
 def a(color, alpha):
+    """Return a QColor with ``alpha`` clamped to the range from 0 to 255.
+
+    Args:
+        color: QColor-compatible color value.
+        alpha: Desired opacity.
+
+    Returns:
+        A new QColor instance with the requested opacity.
+    """
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
 def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
+    """Build a HUD font using display or monospaced font families.
+
+    Args:
+        size: Font pixel size.
+        weight: Qt font weight.
+        spacing: Optional absolute character spacing.
+        mono: Whether to prefer a monospaced font.
+
+    Returns:
+        The configured QFont.
+    """
     f = QFont()
     f.setFamilies(["JetBrains Mono", "Consolas"] if mono else ["Orbitron", "Rajdhani", "Segoe UI"])
     f.setPixelSize(size)
@@ -23,7 +43,16 @@ def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
     return f
 
 class GlowButton(QPushButton):
+    """Paint a neon button with a hover animation and optional checked state."""
+
     def __init__(self, text, color=CYAN, checkable=False):
+        """Create a neon-styled button.
+
+        Args:
+            text: Button label.
+            color: QColor-compatible glow color.
+            checkable: Whether the button supports a persistent checked state.
+        """
         super().__init__(text)
         self._c = QColor(color)
         self._g = 0.0
@@ -47,14 +76,25 @@ class GlowButton(QPushButton):
         self._anim.start()
 
     def enterEvent(self, e):
+        """Animate the glow on pointer entry.
+
+        Args:
+            e: Qt enter event.
+        """
         self._go(1.0)
         super().enterEvent(e)
 
     def leaveEvent(self, e):
+        """Fade the glow after the pointer leaves.
+
+        Args:
+            e: Qt leave event.
+        """
         self._go(0.0)
         super().leaveEvent(e)
 
     def paintEvent(self, _):
+        """Paint the button body, layered glow, checked marker, and label."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         on = self.isCheckable() and self.isChecked()
@@ -78,16 +118,25 @@ class GlowButton(QPushButton):
         p.drawText(tx, Qt.AlignCenter, self.text())
 
 class ArcReactor(QWidget):
+    """Render the animated circular FPS and system-status visualization."""
+
     def __init__(self):
+        """Initialize animation phase and displayed status values."""
         super().__init__()
         self.setMinimumHeight(150)
         self.phase, self.fps, self.hands = 0.0, 0.0, 0
 
     def advance(self, dt):
+        """Advance the animation by a time delta and request repainting.
+
+        Args:
+            dt: Elapsed time in seconds.
+        """
         self.phase += dt
         self.update()
 
     def paintEvent(self, _):
+        """Draw animated rings, a center glow, and the current FPS value."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         c = QPointF(self.width() / 2, self.height() / 2)
@@ -119,19 +168,34 @@ class ArcReactor(QWidget):
         p.drawText(QRectF(c.x() - 50, c.y() + 10, 100, 16), Qt.AlignCenter, "FPS")
 
 class Sparkline(QWidget):
+    """Display a rolling graph of recently observed FPS values."""
+
     N = 90
+
     def __init__(self):
+        """Initialize an empty bounded FPS history."""
         super().__init__()
         self.setFixedHeight(84)
         self.v = deque(maxlen=self.N)
 
     def push(self, x):
+        """Append one FPS sample to the rolling history.
+
+        Args:
+            x: Measured frames per second.
+        """
         self.v.append(x)
 
     def advance(self, dt):
+        """Request a repaint; the history itself is updated by ``push``.
+
+        Args:
+            dt: Elapsed time in seconds (unused by this static history view).
+        """
         self.update()
 
     def paintEvent(self, _):
+        """Draw the grid, filled history curve, and latest sample marker."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
@@ -164,17 +228,28 @@ class Sparkline(QWidget):
         p.drawEllipse(pts[-1], 3, 3)
 
 class FingerBar(QWidget):
+    """Show the extended-finger pattern and recognized pose label."""
+
     NAMES = "TIMRP"
+
     def __init__(self):
+        """Initialize with all fingers down and no recognized gesture."""
         super().__init__()
         self.setFixedHeight(76)
         self.st, self.name = [False] * 5, "—"
 
     def set(self, st, name):
+        """Update the finger indicators and displayed gesture name.
+
+        Args:
+            st: Five booleans describing the thumb-to-pinky states.
+            name: Gesture label shown beside the indicators.
+        """
         self.st, self.name = st, name
         self.update()
 
     def paintEvent(self, _):
+        """Paint each finger indicator and the current gesture label."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         bw, gap, hh = 16, 8, 44
@@ -203,7 +278,10 @@ class FingerBar(QWidget):
         p.drawText(QRectF(150, 0, self.width() - 150, self.height()), Qt.AlignVCenter | Qt.AlignRight, self.name)
 
 class Console(QPlainTextEdit):
+    """Render timestamped event messages with a compact typing animation."""
+
     def __init__(self):
+        """Initialize the read-only event log and its message timer."""
         super().__init__()
         self.setReadOnly(True)
         self.setFrameShape(QFrame.NoFrame)
@@ -219,6 +297,11 @@ class Console(QPlainTextEdit):
         t.start(20)
 
     def say(self, msg):
+        """Queue a message for animated display in the event log.
+
+        Args:
+            msg: Message text to timestamp and append.
+        """
         self.q.append(f"[{time.strftime('%H:%M:%S')}] {msg}")
 
     def _step(self):

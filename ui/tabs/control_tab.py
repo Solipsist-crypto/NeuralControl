@@ -1,3 +1,7 @@
+import time
+from pathlib import Path
+import sys
+
 import numpy as np
 
 from PySide6.QtCore import Qt, QTimer, QRectF, QPointF
@@ -17,15 +21,35 @@ from services.action_runner import (
 from services.action_catalog import WAIT_ACTION
 from core.types import GESTURE_TRANSLATIONS
 
-# Нові кольори
+# HUD accent colors.
 CYAN, VIOLET = QColor("#4da6ff"), QColor("#8b5cf6")
 
 def a(color, alpha):
+    """Create a QColor with ``alpha`` clamped to the supported range.
+
+    Args:
+        color: QColor-compatible color value.
+        alpha: Desired opacity from 0 to 255.
+
+    Returns:
+        A new QColor with the requested opacity.
+    """
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
 def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
+    """Create a HUD font using the configured display or monospaced family.
+
+    Args:
+        size: Font pixel size.
+        weight: Qt font weight.
+        spacing: Optional absolute character spacing.
+        mono: Whether to prefer a monospaced font family.
+
+    Returns:
+        A configured QFont instance.
+    """
     f = QFont()
     f.setFamilies(["JetBrains Mono", "Consolas"] if mono else ["Orbitron", "Rajdhani", "Segoe UI"])
     f.setPixelSize(size)
@@ -35,7 +59,14 @@ def mkfont(size, weight=QFont.Normal, spacing=0.0, mono=False):
     return f
 
 class HudPanel(QWidget):
+    """Draw a glass-like HUD frame and heading around child widgets."""
+
     def __init__(self, title):
+        """Create a panel with a custom painted title.
+
+        Args:
+            title: Heading rendered at the top of the panel.
+        """
         super().__init__()
         self.title = title
         self.lay = QVBoxLayout(self)
@@ -43,6 +74,7 @@ class HudPanel(QWidget):
         self.lay.setSpacing(8)
 
     def paintEvent(self, _):
+        """Paint the panel fill, neon outline, and title decoration."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         r = QRectF(self.rect()).adjusted(1, 1, -1, -1)
@@ -57,7 +89,7 @@ class HudPanel(QWidget):
         path.closeSubpath()
         
         g = QLinearGradient(r.topLeft(), r.bottomRight())
-        g.setColorAt(0, QColor(255, 255, 255, 15)) # Менш яскраве скло
+        g.setColorAt(0, QColor(255, 255, 255, 15))  # Keep the glass effect subtle.
         g.setColorAt(1, a(CYAN, 5))
         p.fillPath(path, QBrush(g))
         
@@ -79,7 +111,10 @@ class HudPanel(QWidget):
         p.drawLine(QPointF(r.right() - 26, r.bottom()), QPointF(r.right() - 12, r.bottom()))
 
 class ControlTab(QWidget):
+    """Connect the live camera, gesture engine, rule runner, and HUD controls."""
+
     def __init__(self):
+        """Initialize control widgets and start camera/gesture processing."""
         super().__init__()
         body = QHBoxLayout(self)
         body.setContentsMargins(14, 12, 14, 16)
@@ -91,7 +126,7 @@ class ControlTab(QWidget):
         col = QVBoxLayout()
         col.setSpacing(10)
         right = QWidget()
-        right.setFixedWidth(320) # Трохи вужче
+        right.setFixedWidth(320)
         right.setLayout(col)
         body.addWidget(right)
 
@@ -104,8 +139,6 @@ class ControlTab(QWidget):
             lb.setFont(mkfont(12, QFont.Normal, 1, True))
             pn.lay.addWidget(lb)
         col.addWidget(pn)
-
-        # GESTURE - ВИДАЛЕНО
 
         # FPS TRACE
         pf = HudPanel("ГРАФІК FPS")
@@ -184,9 +217,9 @@ class ControlTab(QWidget):
         self.b_scan.toggled.connect(lambda x: setattr(self.video, "scan", x))
         self.b_gest.toggled.connect(self._gestures_toggled)
         self._mouse_position = None
-        self._mouse_pinches = {"middle": False, "ring": False}
-        self._pyautogui = None
         self._mouse_error_logged = False
+        self._mouse_hand_missing_logged = False
+        self._last_mouse_debug_at = 0.0
         
         self.camera = CameraThread(camera_index=0)
         self.camera.frame_ready.connect(self.engine.process_frame)
@@ -198,6 +231,7 @@ class ControlTab(QWidget):
         self.fps_timer.start(1000)
 
     def calc_fps(self):
+        """Publish the latest one-second frame count to the HUD widgets."""
         self.reactor.fps = self.frame_count
         self.spark.push(self.frame_count)
         self.frame_count = 0
@@ -212,7 +246,6 @@ class ControlTab(QWidget):
         self.engine.set_enabled(on)
         if not on:
             self._mouse_position = None
-            self._mouse_pinches = {"middle": False, "ring": False}
             self._release_mouse_button()
             self.rule_engine.reset()
             self.action_timer.stop()
@@ -221,6 +254,7 @@ class ControlTab(QWidget):
         self._set_status(self._state_label(), self._prev_n)
 
     def reload_neural_model(self):
+        """Reload the neural model and report its availability in the event log."""
         self.engine.reload_model()
         self._log_neural_status()
 
@@ -239,6 +273,13 @@ class ControlTab(QWidget):
             self.console.say(f"ПОМИЛКА МОДЕЛІ: {neural_pose.load_error}")
 
     def on_frame_processed(self, frame, tracked_hands, predictions):
+        """Update dependent tabs, execute matched rules, and refresh the HUD.
+
+        Args:
+            frame: Camera image in BGR format.
+            tracked_hands: Mapping of hand IDs to normalized landmark arrays.
+            predictions: Mapping of hand IDs to gesture/confidence predictions.
+        """
         self.frame_count += 1
         main_win = self.window()
 
@@ -247,7 +288,6 @@ class ControlTab(QWidget):
             self.rule_engine.reset()
         elif self._mouse_position is not None:
             self._mouse_position = None
-            self._mouse_pinches = {"middle": False, "ring": False}
 
         if hasattr(main_win, 'tab_training'):
             training_active = (
@@ -322,13 +362,16 @@ class ControlTab(QWidget):
             if pose in self.engine.mouse_exit_gestures:
                 self.engine.set_mouse_mode(False)
                 self.console.say("РЕЖИМ МИШКИ: ВИМКНЕНО")
+                self._debug_print(
+                    "[NeuralControl] Mouse mode disabled by exit gesture"
+                )
                 self._mouse_position = None
-                self._mouse_pinches = {"middle": False, "ring": False}
                 self._release_mouse_button()
                 self._skip_rules_once = True
             return
 
     def reload_rules(self):
+        """Reload action rules and report validation failures in the event log."""
         try:
             self.rule_engine.reload()
         except (OSError, RuleValidationError) as error:
@@ -380,19 +423,29 @@ class ControlTab(QWidget):
                     else None
                 ),
             )
+            if self.engine.state.value != "MOUSE":
+                self.console.say("ПОМИЛКА: режим мишки не перейшов у стан MOUSE")
+                return
             self._pending_actions.clear()
             self._sequence_running = False
             self.console.say("РЕЖИМ МИШКИ: УВІМКНЕНО")
+            self._debug_print(
+                f"[NeuralControl] Mouse mode enabled: "
+                f"{first_trigger['hand']} / {first_trigger['pose']}"
+            )
             return
 
         try:
-            self.action_runner.execute(action, params)
+            result = self.action_runner.execute(action, params)
         except ActionCancelledError:
             self.console.say(f"ДІЮ СКАСОВАНО: {action}")
         except ActionExecutionError as error:
             self.console.say(f"ПОМИЛКА ДІЇ: {error}")
         else:
-            self.console.say(f"ДІЮ ВИКОНАНО: {action}")
+            if isinstance(result, Path):
+                self.console.say(f"ФАЙЛ ЗБЕРЕЖЕНО: {result}")
+            else:
+                self.console.say(f"ДІЮ ВИКОНАНО: {action}")
         self.action_timer.start(0)
 
     def _get_pyautogui(self):
@@ -410,57 +463,63 @@ class ControlTab(QWidget):
         except ActionExecutionError as error:
             self.console.say(f"ПОМИЛКА МИШІ: {error}")
 
+    @staticmethod
+    def _debug_print(message):
+        stream = getattr(sys, "stdout", None)
+        if stream is not None:
+            print(message, file=stream)
+
     def _update_mouse_controls(self, tracked_hands):
         if not tracked_hands:
             self._mouse_position = None
-            self._mouse_pinches = {"middle": False, "ring": False}
+            if not self._mouse_hand_missing_logged:
+                self._debug_print(
+                    "[NeuralControl] Mouse mode active, waiting for a tracked hand"
+                )
+                self._mouse_hand_missing_logged = True
             return
 
         side = "RIGHT" if "RIGHT" in tracked_hands else next(iter(tracked_hands))
         points = np.asarray(tracked_hands[side], dtype=np.float32)
-        if points.shape[0] != 21 or points.shape[1] < 2:
+        if points.ndim != 2 or points.shape[0] != 21 or points.shape[1] < 2:
+            self._debug_print(
+                f"[NeuralControl] Invalid landmarks for mouse control: {points.shape}"
+            )
             return
 
+        self._mouse_hand_missing_logged = False
         pyautogui = self._get_pyautogui()
         if pyautogui is None:
             return
         try:
             screen_width, screen_height = pyautogui.size()
+            # Landmark X/Y values are normalized to [0, 1]; map them to screen pixels.
             target_x = int(np.clip(points[8, 0], 0.0, 1.0) * (screen_width - 1))
             target_y = int(np.clip(points[8, 1], 0.0, 1.0) * (screen_height - 1))
             if self._mouse_position is None:
                 self._mouse_position = (target_x, target_y)
             else:
+                # Blend the previous cursor location with the new target to reduce jitter.
                 previous_x, previous_y = self._mouse_position
                 self._mouse_position = (
                     int(previous_x * 0.65 + target_x * 0.35),
                     int(previous_y * 0.65 + target_y * 0.35),
                 )
             pyautogui.moveTo(*self._mouse_position, duration=0, _pause=False)
-
-            palm_width = float(np.linalg.norm(points[5, :2] - points[17, :2]))
-            if palm_width <= 1e-4:
-                return
-            middle_pressed = (
-                np.linalg.norm(points[4, :2] - points[12, :2])
-                <= palm_width * 0.32
-            )
-            ring_pressed = (
-                np.linalg.norm(points[4, :2] - points[16, :2])
-                <= palm_width * 0.32
-            )
-            if middle_pressed and not self._mouse_pinches["middle"]:
-                pyautogui.click(button="left", _pause=False)
-            elif ring_pressed and not self._mouse_pinches["ring"]:
-                pyautogui.click(button="right", _pause=False)
-            self._mouse_pinches["middle"] = bool(middle_pressed)
-            self._mouse_pinches["ring"] = bool(ring_pressed)
+            now = time.monotonic()
+            if now - self._last_mouse_debug_at >= 1.0:
+                self._debug_print(
+                    f"[NeuralControl] moveTo({self._mouse_position[0]}, "
+                    f"{self._mouse_position[1]}) from {side} index fingertip"
+                )
+                self._last_mouse_debug_at = now
         except (OSError, pyautogui.FailSafeException) as error:
             if not self._mouse_error_logged:
                 self.console.say(f"ПОМИЛКА КЕРУВАННЯ МИШКОЮ: {error}")
                 self._mouse_error_logged = True
 
     def stop(self):
+        """Stop the camera thread, release held mouse input, and close the engine."""
         self.camera.stop()
         self._release_mouse_button()
         self.engine.stop()

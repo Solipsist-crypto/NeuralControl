@@ -28,6 +28,25 @@
       "triggers": [
         {
           "pose": "ЛІВА_ЛОДОНЬ",
+          "hand": "LEFT"
+        }
+      ],
+      "combination": false,
+      "hold_ms": 300,
+      "enabled": true,
+      "actions": [
+        {
+          "action": "Скріншот всього екрана",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "id": "3b8c8470b6bf4a76b690421f7fb127e5",
+      "name": "",
+      "triggers": [
+        {
+          "pose": "ПРАВА_ЛОДОНЬ",
           "hand": "RIGHT"
         }
       ],
